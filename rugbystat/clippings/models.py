@@ -192,9 +192,9 @@ class Document(TitleDescriptionModel, TimeStampedModel):
         verbose_name=_('Путь в Dropbox'), storage=MyDropbox(),
         blank=True, null=True)
     dropbox_path = models.URLField(
-        verbose_name=_('Прямая ссылка на файл'), max_length=127, blank=True)
+        verbose_name=_('Прямая ссылка на файл'), max_length=255, blank=True)
     dropbox_thumb = models.URLField(
-        verbose_name=_('Прямая ссылка на превью'), max_length=127,
+        verbose_name=_('Прямая ссылка на превью'), max_length=255,
         blank=True, null=True)
     year = models.PositiveSmallIntegerField(
         verbose_name=_('Год создания'), blank=True, null=True,
@@ -322,6 +322,15 @@ class Document(TitleDescriptionModel, TimeStampedModel):
         f = resp.content
         result = self.client.files_upload(f, thumb_path)
         return result.path_lower
+
+    def update_big(self):
+        self.dropbox_path = self.get_share_link(self.dropbox.file.name)
+        self.save()
+
+    def update_thumb(self):
+        self.client.files_delete(self.get_thumb_path())
+        self.dropbox_thumb = self.get_share_link(self.get_thumb_path())
+        self.save()
 
     def move_dropbox(self, to_path):
         """

@@ -306,8 +306,6 @@ def find_best_match(queryset, name, first_name, ratio_threshold=0.6):
 
     if ratios and max(ratios) > ratio_threshold:
         return queryset[ratios.index(max(ratios))]
-    else:
-        return Person.objects.create(name=name, first_name=first_name)
 
 
 def parse_teams(data):
