@@ -436,6 +436,12 @@ class Person(TagObject):
     def get_absolute_url(self):
         return reverse('persons_detail', kwargs={'pk': self.pk})
 
+    def migrate_to(self, other):
+        for doc in self.documents.all():
+            doc.tag.remove(self)
+            doc.tag.add(other)
+        self.seasons.update(person_id=other.pk)
+
 
 class PersonSeason(models.Model):
     """Representation of each year in a person's career"""
