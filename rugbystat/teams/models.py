@@ -182,7 +182,7 @@ class TableRowFields(models.Model):
     )
     points = models.PositiveSmallIntegerField(
         verbose_name=_('О'), null=True, blank=True,
-        validators=(MaxValueValidator(200),),
+        validators=(MaxValueValidator(300),),
     )
     score = models.CharField(
         verbose_name=_('Р/О'), max_length=10, blank=True
@@ -436,7 +436,7 @@ class Person(TagObject):
     def get_absolute_url(self):
         return reverse('persons_detail', kwargs={'pk': self.pk})
 
-    def migrate_to(self, other):
+    def migrate(self, other):
         for doc in self.documents.all():
             doc.tag.remove(self)
             doc.tag.add(other)
