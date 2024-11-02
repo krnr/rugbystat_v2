@@ -63,7 +63,7 @@
   </div>
 <h2 id="name" class="editable">{{ object.full_name }}</h2>
 
-
+{% if user.is_authenticated %}
 <form role="form" id="personForm"
       method="POST" action="{% url 'persons_detail' pk=object.pk %}"
       style="display: none;">
@@ -129,6 +129,7 @@
 </form>
 
 {{ form.media }}
+{% endif %}
 
 <div id="dossier" class="editable">
   {% if "-" in object.living_years %}
@@ -142,6 +143,7 @@
   <div>{{ object.story | markdown }}</div>
 </div>
 
+{% if user.is_authenticated %}
 <form role="form" id="addPersonSeason" style="display: none;">
 {% csrf_token %}
 <div class="form-inputs">
@@ -184,6 +186,7 @@
   <div class="pull-right">
     <button class="btn btn-default" id="showPersonSeasonForm" type="button">Добавить</button>
   </div>
+{% endif %}
 
 <div class="pull-left">
   <h4>Сезоны</h4>

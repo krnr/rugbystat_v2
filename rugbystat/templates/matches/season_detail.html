@@ -67,7 +67,7 @@
 {% include 'matches/match_list.html' with matches=object.matches.all %}
 {% endfor %}
 
-{% if not user.is_anonymous %}
+{% if user.is_authenticated %}
 <form role="form" id="addMatch" class="addForm" style="display: none;">
 {% csrf_token %}
 

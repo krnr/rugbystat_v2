@@ -2,10 +2,12 @@ import operator
 from functools import reduce
 
 from dal import autocomplete
-from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, UpdateView
 from django.views.generic.edit import FormMixin
 
@@ -151,23 +153,22 @@ class TeamUpdateView(UpdateView):
 
     def get_context_data(self, **kwargs):
         kwargs = super().get_context_data(**kwargs)
-        form = TeamSeasonForm(initial={'team': self.object})
-        kwargs['season_form'] = form
-        kwargs['seasons'] = self.object.seasons.select_related('season')
-        kwargs['documents'] = self.object.documents.with_source_title()
+        form = TeamSeasonForm(initial={"team": self.object})
+        if self.request.user.is_authenticated:
+            kwargs["season_form"] = form
+        kwargs["seasons"] = self.object.seasons.select_related("season")
+        kwargs["documents"] = self.object.documents.with_source_title()
         return kwargs
 
 
 def get_same_year_players(for_season: TeamSeason, roster: PersonSeason.objects):
-    qs = PersonSeason.objects.filter(
-        team_id=for_season.team_id, year=for_season.year
-    ).exclude(
-        season_id=for_season.season_id
-    ).exclude(
-        person_id__in=[p.person_id for p in roster]
-    ).select_related(
-        'person__tagobject_ptr'
-    ).order_by('role', 'person__name')
+    qs = (
+        PersonSeason.objects.filter(team_id=for_season.team_id, year=for_season.year)
+        .exclude(season_id=for_season.season_id)
+        .exclude(person_id__in=[p.person_id for p in roster])
+        .select_related("person__tagobject_ptr")
+        .order_by("role", "person__name")
+    )
     distinct = []
     added = set()
     for season in qs:
@@ -186,7 +187,8 @@ class TeamSeasonView(FormMixin, DetailView):
     def get_context_data(self, **kwargs):
         kwargs = super(TeamSeasonView, self).get_context_data(**kwargs)
         team_season = self.object
-        kwargs["person_form"] = PersonRosterForm(initial=self.get_initial())
+        if self.request.user.is_authenticated:
+            kwargs["person_form"] = PersonRosterForm(initial=self.get_initial())
         kwargs["roster"] = team_season.get_players()
         kwargs["same_year_players"] = get_same_year_players(
             team_season, kwargs["roster"]
@@ -252,7 +254,7 @@ class TeamAllYearView(DetailView):
         return ctx
 
 
-class PersonCreateView(CreateView):
+class PersonCreateView(LoginRequiredMixin, CreateView):
     model = Person
     form_class = PersonForm
     success_url = reverse_lazy("persons")
@@ -265,8 +267,14 @@ class PersonUpdateView(UpdateView):
 
     def get_context_data(self, **kwargs):
         kwargs = super(PersonUpdateView, self).get_context_data(**kwargs)
-        form = PersonSeasonForm(initial={"person": self.object.pk})
-        kwargs["season_form"] = form
+        if self.request.user.is_authenticated:
+            kwargs["season_form"] = PersonSeasonForm(initial={"person": self.object.pk})
         kwargs["seasons"] = self.object.seasons.select_related("season", "team")
         kwargs["documents"] = self.object.documents.with_source_title()
         return kwargs
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            raise PermissionDenied
+        return super().post(request, *args, **kwargs)
+

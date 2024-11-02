@@ -6,7 +6,11 @@
 	"workspaceFolder": "/workspace",
 	"postCreateCommand": "python --version",
 
-	"extensions": [
-		"ms-python.python"
-	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python"
+			]
+		}
+	}
 }

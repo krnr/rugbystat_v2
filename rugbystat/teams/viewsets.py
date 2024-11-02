@@ -1,6 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, mixins, filters
-
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .filters import TeamFullTextFilter
 from .models import Team, TeamSeason, Person, PersonSeason
 from .serializers import (TeamSerializer, TeamSeasonSerializer,
@@ -27,6 +27,7 @@ class TeamSeasonViewSet(mixins.CreateModelMixin,
                         viewsets.ReadOnlyModelViewSet):
     queryset = TeamSeason.objects.all()
     serializer_class = TeamSeasonSerializer
+    permission_classes = (IsAuthenticatedOrReadOnly,)
     filter_backends = (filters.SearchFilter,
                        DjangoFilterBackend,)
     search_fields = ('name', '^season__name',)
@@ -39,6 +40,7 @@ class PersonViewSet(mixins.CreateModelMixin,
                     viewsets.ReadOnlyModelViewSet):
     queryset = Person.objects.order_by('name')
     serializer_class = PersonSerializer
+    permission_classes = (IsAuthenticatedOrReadOnly,)
     filter_backends = (filters.SearchFilter, DjangoFilterBackend,)
     search_fields = ('^name', )
     filter_fields = ('year_birth', 'name',)
@@ -49,3 +51,4 @@ class PersonSeasonViewSet(mixins.CreateModelMixin,
                           viewsets.ReadOnlyModelViewSet):
     queryset = PersonSeason.objects.all()
     serializer_class = PersonSeasonSerializer
+    permission_classes = (IsAuthenticatedOrReadOnly,)

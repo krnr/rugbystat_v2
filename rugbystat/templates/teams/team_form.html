@@ -60,6 +60,7 @@
 {% endif %}
 </div>
 
+{% if user.is_authenticated %}
 <form role="form" id="teamForm"
       method="POST" action="{% url 'teams_detail' pk=object.pk %}"
       style="display: none;">
@@ -99,6 +100,7 @@
 </form>
 
 {{ form.media }}
+{% endif %}
 
 <div id="dossier" class="editable">
   <b>Годы:</b> {{ object.operational_years }}

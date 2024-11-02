@@ -55,8 +55,7 @@
 </ul>
 {% endif %}
 
-{% if not user.is_anonymous %}
-
+{% if user.is_authenticated %}
 <form method="post">
   {% csrf_token %}
 
