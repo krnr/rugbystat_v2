@@ -1,13 +1,12 @@
 from datetime import date
 
-from django.contrib.admin.filters import (AllValuesFieldListFilter, 
-                                          SimpleListFilter)
+from django.contrib.admin.filters import AllValuesFieldListFilter, SimpleListFilter
 from django.db.models.functions import ExtractYear
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 
 class DropdownFilter(AllValuesFieldListFilter):
-    template = 'admin/dropdown_filter.html'
+    template = "admin/dropdown_filter.html"
 
     def __init__(self, *args, **kwargs):
         super(DropdownFilter, self).__init__(*args, **kwargs)
@@ -15,13 +14,13 @@ class DropdownFilter(AllValuesFieldListFilter):
 
 
 class DateEndListFilter(SimpleListFilter):
-    title = _('Year')
+    title = _("Year")
 
     # which field is used to extract year
-    model_field = 'date_end'
+    model_field = "date_end"
 
     # Parameter for the filter that will be used in the URL query.
-    parameter_name = 'year'
+    parameter_name = "year"
 
     def lookups(self, request, model_admin):
         """
@@ -31,12 +30,13 @@ class DateEndListFilter(SimpleListFilter):
         human-readable name for the option that will appear
         in the right sidebar.
         """
-        values = model_admin.model.objects.annotate(
-                year=ExtractYear(self.model_field)
-        ).distinct().order_by('year').values_list('year', flat=True)
-        return (
-            (value, value) for value in values
+        values = (
+            model_admin.model.objects.annotate(year=ExtractYear(self.model_field))
+            .distinct()
+            .order_by("year")
+            .values_list("year", flat=True)
         )
+        return ((value, value) for value in values)
 
     def queryset(self, request, queryset):
         """
@@ -47,15 +47,14 @@ class DateEndListFilter(SimpleListFilter):
         if self.value():
             year = int(self.value())
             lookups = {
-                f'{self.model_field}__gte': date(year, 1, 1),
-                f'{self.model_field}__lte': date(year, 12, 31),
+                f"{self.model_field}__gte": date(year, 1, 1),
+                f"{self.model_field}__lte": date(year, 12, 31),
             }
             return queryset.filter(**lookups)
 
 
 class DateListFilter(DateEndListFilter):
-    title = _('Year')
+    title = _("Year")
 
     # which field is used to extract year
-    model_field = 'date'
-
+    model_field = "date"

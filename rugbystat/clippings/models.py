@@ -10,7 +10,7 @@ from django.db.models import F
 from django.db.utils import DataError
 from django.utils.deconstruct import deconstructible
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from django_extensions.db.models import TimeStampedModel, TitleDescriptionModel
 from dropbox.exceptions import ApiError
@@ -20,77 +20,84 @@ from storages.backends.dropbox import DropBoxStorage, DropBoxStorageException
 from teams.models import TagObject
 
 
-logger = logging.getLogger('django.server')
+logger = logging.getLogger("django.server")
 
 
 def get_dropbox_content_url(url):
-    return url.replace('www.dropbox', 'dl.dropboxusercontent')
+    return url.replace("www.dropbox", "dl.dropboxusercontent")
 
 
 class Source(models.Model):
-    PHOTO = 'photo'
-    NEWSPAPER = 'newspaper'
-    MAGAZINE = 'magazine'
-    PROTOCOL = 'protocol'
-    PROGRAM = 'program'
-    BOOK = 'book'
-    OTHER = 'other'
+    PHOTO = "photo"
+    NEWSPAPER = "newspaper"
+    MAGAZINE = "magazine"
+    PROTOCOL = "protocol"
+    PROGRAM = "program"
+    BOOK = "book"
+    OTHER = "other"
     TYPE_CHOICES = (
-        (PHOTO, 'фото'),
-        (NEWSPAPER, 'газета'),
-        (MAGAZINE, 'журнал'),
-        (PROTOCOL, 'протокол'),
-        (PROGRAM, 'программка'),
-        (BOOK, 'книга'),
-        (OTHER, 'прочее'),
+        (PHOTO, "фото"),
+        (NEWSPAPER, "газета"),
+        (MAGAZINE, "журнал"),
+        (PROTOCOL, "протокол"),
+        (PROGRAM, "программка"),
+        (BOOK, "книга"),
+        (OTHER, "прочее"),
     )
-    title = models.CharField(
-        verbose_name=_('Название'), max_length=127, default='N/A')
+    title = models.CharField(verbose_name=_("Название"), max_length=127, default="N/A")
     kind = models.CharField(
-        verbose_name=_('Тип'), max_length=127,
-        choices=TYPE_CHOICES, default=PHOTO)
+        verbose_name=_("Тип"), max_length=127, choices=TYPE_CHOICES, default=PHOTO
+    )
 
     class Meta:
-        ordering = ('title', 'id', )
+        ordering = (
+            "title",
+            "id",
+        )
 
     def __str__(self):
         return self.title
 
     @cached_property
     def documents(self):
-        return self.scans.not_deleted().prefetch_related('versions')
+        return self.scans.not_deleted().prefetch_related("versions")
 
     def as_dict(self):
         result = dict(self.__dict__)
-        result.pop('_state')
+        result.pop("_state")
         return result
 
 
 class SourceObjectManager(models.Manager):
     def get_queryset(self):
         qs = super(SourceObjectManager, self).get_queryset()
-        return qs.select_related('source')
+        return qs.select_related("source")
 
 
 class SourceObject(models.Model):
-    source = models.ForeignKey(Source, on_delete=models.CASCADE, related_name='instances')
-    edition = models.CharField(
-        verbose_name=_('Название'), max_length=127, blank=True)
+    source = models.ForeignKey(
+        Source, on_delete=models.CASCADE, related_name="instances"
+    )
+    edition = models.CharField(verbose_name=_("Название"), max_length=127, blank=True)
     year = models.PositiveSmallIntegerField(
-        verbose_name=_('Год'), blank=True, null=True,
+        verbose_name=_("Год"),
+        blank=True,
+        null=True,
         validators=(MinValueValidator(1900), MaxValueValidator(2100)),
     )
-    date = models.DateField(verbose_name=_('Дата'), blank=True, null=True)
+    date = models.DateField(verbose_name=_("Дата"), blank=True, null=True)
 
     objects = SourceObjectManager()
 
     class Meta:
-        ordering = ('source', 'year', )
+        ordering = (
+            "source",
+            "year",
+        )
 
     def __str__(self):
         if self.edition and self.source.kind != Source.BOOK:
-            return "{} {}, {}".format(
-                self.source.title, self.edition, self.year)
+            return "{} {}, {}".format(self.source.title, self.edition, self.year)
         return self.source.title
 
     @cached_property
@@ -106,7 +113,7 @@ class MyDropbox(DropBoxStorage):
 
 def get_year_from_meta(year: str, fname: str) -> int:
     if len(year) < 4:
-        year = '19' + year
+        year = "19" + year
 
     try:
         year = int(year)
@@ -121,7 +128,7 @@ def get_year_from_meta(year: str, fname: str) -> int:
 class DocumentQuerySet(models.QuerySet):
     def create_from_meta(self, **kwargs):
         with transaction.atomic():
-            metadata = kwargs.get('meta', None)
+            metadata = kwargs.get("meta", None)
 
             if metadata is None:
                 return
@@ -135,7 +142,7 @@ class DocumentQuerySet(models.QuerySet):
             # '89-12-20filename.jpg'
             # '91-05-06_name.jpg'
             try:
-                pattern = '(\d+)-*(\d*)-*(\d*)_*(.*)'
+                pattern = "(\d+)-*(\d*)-*(\d*)_*(.*)"
                 year, month, day, name = re.findall(pattern, fname)[0]
             except IndexError:
                 # regexp didn't return date!
@@ -143,7 +150,7 @@ class DocumentQuerySet(models.QuerySet):
             else:
                 if len(day) > 2:
                     name = day + name
-                    day = ''
+                    day = ""
 
                 year = get_year_from_meta(year, fname)
 
@@ -156,9 +163,13 @@ class DocumentQuerySet(models.QuerySet):
                     doc_date = None
 
                 # create a Document
-                document = self.model(title=fname, dropbox=metadata.path_lower,
-                                      date=doc_date, year=year,
-                                      month=month or None,)
+                document = self.model(
+                    title=fname,
+                    dropbox=metadata.path_lower,
+                    date=doc_date,
+                    year=year,
+                    month=month or None,
+                )
 
             try:
                 document.save(force_insert=True)
@@ -177,47 +188,74 @@ class Document(TitleDescriptionModel, TimeStampedModel):
     """
     Model of all documents (photos, clips, articles)
     """
+
     title = models.CharField(
-        verbose_name=_('Заголовок'), max_length=127, default='Archive')
+        verbose_name=_("Заголовок"), max_length=127, default="Archive"
+    )
     source = models.ForeignKey(
-        Source, on_delete=models.SET_NULL, verbose_name=_('Источник'), related_name='scans',
-        blank=True, null=True)
+        Source,
+        on_delete=models.SET_NULL,
+        verbose_name=_("Источник"),
+        related_name="scans",
+        blank=True,
+        null=True,
+    )
     source_issue = models.ForeignKey(
-        SourceObject, on_delete=models.SET_NULL, verbose_name=_('Выпуск'), related_name='scans',
-        blank=True, null=True)
+        SourceObject,
+        on_delete=models.SET_NULL,
+        verbose_name=_("Выпуск"),
+        related_name="scans",
+        blank=True,
+        null=True,
+    )
     kind = models.CharField(
-        verbose_name=_('Тип'), max_length=127, choices=Source.TYPE_CHOICES,
-        blank=True)
+        verbose_name=_("Тип"), max_length=127, choices=Source.TYPE_CHOICES, blank=True
+    )
     dropbox = models.FileField(
-        verbose_name=_('Путь в Dropbox'), storage=MyDropbox(),
-        blank=True, null=True)
+        verbose_name=_("Путь в Dropbox"), storage=MyDropbox(), blank=True, null=True
+    )
     dropbox_path = models.URLField(
-        verbose_name=_('Прямая ссылка на файл'), max_length=255, blank=True)
+        verbose_name=_("Прямая ссылка на файл"), max_length=255, blank=True
+    )
     dropbox_thumb = models.URLField(
-        verbose_name=_('Прямая ссылка на превью'), max_length=255,
-        blank=True, null=True)
+        verbose_name=_("Прямая ссылка на превью"), max_length=255, blank=True, null=True
+    )
     year = models.PositiveSmallIntegerField(
-        verbose_name=_('Год создания'), blank=True, null=True,
+        verbose_name=_("Год создания"),
+        blank=True,
+        null=True,
         validators=(MinValueValidator(1800), MaxValueValidator(2100)),
     )
     month = models.PositiveSmallIntegerField(
-        verbose_name=_('Месяц'), validators=[MaxValueValidator(12)],
-        blank=True, null=True)
-    date = models.DateField(
-        verbose_name=_('Дата'), blank=True, null=True)
+        verbose_name=_("Месяц"),
+        validators=[MaxValueValidator(12)],
+        blank=True,
+        null=True,
+    )
+    date = models.DateField(verbose_name=_("Дата"), blank=True, null=True)
     is_image = models.BooleanField(
-        verbose_name=_('Этот файл изображение?'), default=False)
-    is_deleted = models.BooleanField(
-        verbose_name=_('Файл удален?'), default=False)
+        verbose_name=_("Этот файл изображение?"), default=False
+    )
+    is_deleted = models.BooleanField(verbose_name=_("Файл удален?"), default=False)
     versions = models.ManyToManyField(
-        'self', verbose_name=_('Версии файла'), blank=True, )
+        "self",
+        verbose_name=_("Версии файла"),
+        blank=True,
+    )
     tag = models.ManyToManyField(
-        TagObject, verbose_name=_('Содержит сведения о'), blank=True, )
+        TagObject,
+        verbose_name=_("Содержит сведения о"),
+        blank=True,
+    )
 
     objects = DocumentQuerySet.as_manager()
 
     class Meta:
-        ordering = ('year', 'month', 'title', )
+        ordering = (
+            "year",
+            "month",
+            "title",
+        )
 
     def __init__(self, *args, **kwargs):
         super(Document, self).__init__(*args, **kwargs)
@@ -228,16 +266,21 @@ class Document(TitleDescriptionModel, TimeStampedModel):
         # meta.media_info.get_metadata().dimensions.width
 
     def _as_dict(self):
-        return dict([(f.name, getattr(self, f.name))
-                     for f in self._meta.local_fields if not f.is_relation])
+        return dict(
+            [
+                (f.name, getattr(self, f.name))
+                for f in self._meta.local_fields
+                if not f.is_relation
+            ]
+        )
 
     @cached_property
     def filename(self):
-        return self.dropbox.name.split('/')[-1]
+        return self.dropbox.name.split("/")[-1]
 
     @cached_property
     def extension(self):
-        return self.dropbox.name.split('.')[-1].lower()
+        return self.dropbox.name.split(".")[-1].lower()
 
     def __str__(self):
         return self.title
@@ -245,23 +288,23 @@ class Document(TitleDescriptionModel, TimeStampedModel):
     def save(self, **kwargs):
         # Get dropbox share links on first upload
         if not self.dropbox_path and self.dropbox:
-            if self.extension in ['jpg', 'jpeg', 'png', 'tiff', 'tif', 'gif']:
+            if self.extension in ["jpg", "jpeg", "png", "tiff", "tif", "gif"]:
                 self.is_image = True
                 self.dropbox_path = self.get_share_link(self.dropbox.name)
                 self.dropbox_thumb = self.get_share_link(self.get_thumb_path())
             else:
-                self.dropbox_path = self.get_share_link(self.dropbox.name,
-                                                        convert=False)
+                self.dropbox_path = self.get_share_link(
+                    self.dropbox.name, convert=False
+                )
 
         # Get newspaper / photo / ... kind from self.source if possible
         if not self.kind and self.source:
             self.kind = self.source.kind
 
         # Move file inside dropbox folder to another path in the same dir
-        if self.title != self._original_state['title']:
+        if self.title != self._original_state["title"]:
             # TODO: any dir
-            to_path = os.path.join(os.path.dirname(self.dropbox.name),
-                                   self.title)
+            to_path = os.path.join(os.path.dirname(self.dropbox.name), self.title)
             self.move_dropbox(to_path)
 
         super(Document, self).save(**kwargs)
@@ -295,12 +338,12 @@ class Document(TitleDescriptionModel, TimeStampedModel):
             else:
                 return result.url
         except DropBoxStorageException as e:
-            logger.error('Cant share link {}'.format(path))
+            logger.error("Cant share link {}".format(path))
             logger.exception(e)
         return None
 
     def get_thumb_path(self):
-        thumb_path = '/.thumbs/{}'.format(self.filename)
+        thumb_path = "/.thumbs/{}".format(self.filename)
         try:
             meta = self.client.files_list_revisions(thumb_path)
             if meta.is_deleted:
@@ -316,8 +359,8 @@ class Document(TitleDescriptionModel, TimeStampedModel):
         return result
 
     def create_dropbox_thumb(self):
-        thumb_path = '/.thumbs/{}'.format(self.filename)
-        size = ThumbnailSize('w128h128', None)
+        thumb_path = "/.thumbs/{}".format(self.filename)
+        size = ThumbnailSize("w128h128", None)
         meta, resp = self.client.files_get_thumbnail(self.dropbox.name, size=size)  # noqa
         f = resp.content
         result = self.client.files_upload(f, thumb_path)

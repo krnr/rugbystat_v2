@@ -10,7 +10,7 @@ except ImportError:
 
 # Honor the 'X-Forwarded-Proto' header for request.is_secure()
 # https://devcenter.heroku.com/articles/getting-started-with-django
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # django-secure
 # http://django-secure.readthedocs.org/en/v0.1.2/settings.html
@@ -35,15 +35,18 @@ ALLOWED_HOSTS = ["*"]
 # Template
 # https://docs.djangoproject.com/en/dev/ref/settings/#template-dirs
 TEMPLATE_LOADERS = (
-    ('django.template.loaders.cached.Loader', (
-        'django.template.loaders.filesystem.Loader',
-        'django.template.loaders.app_directories.Loader',
-    )),
+    (
+        "django.template.loaders.cached.Loader",
+        (
+            "django.template.loaders.filesystem.Loader",
+            "django.template.loaders.app_directories.Loader",
+        ),
+    ),
 )
 
 # Media files
 # http://django-storages.readthedocs.org/en/latest/index.html
-INSTALLED_APPS += ('storages',)
+INSTALLED_APPS += ("storages",)
 DROPBOX_OAUTH2_TOKEN = DROPBOX_ACCESS_TOKEN
 
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
@@ -65,37 +68,37 @@ DROPBOX_OAUTH2_TOKEN = DROPBOX_ACCESS_TOKEN
 # }
 
 # Static files
-STATICFILES_STORAGE = 'whitenoise.django.GzipManifestStaticFilesStorage'
+STATICFILES_STORAGE = "whitenoise.django.GzipManifestStaticFilesStorage"
 
 # Caching
 REDIS_PORT = 6379
-REDIS_HOST = '127.0.0.1'
-REDIS_PASSWORD = 'R@DIS'
-BROKER_URL = 'redis://:%s@%s:%d' % (REDIS_PASSWORD, REDIS_HOST, REDIS_PORT)
+REDIS_HOST = "127.0.0.1"
+REDIS_PASSWORD = "R@DIS"
+BROKER_URL = "redis://:%s@%s:%d" % (REDIS_PASSWORD, REDIS_HOST, REDIS_PORT)
 CACHES = {
-    'default': {
-        'BACKEND': 'redis_cache.RedisCache',
-        'LOCATION': BROKER_URL,
-        'OPTIONS': {
-            'DB': 0,
-            'PASSWORD': REDIS_PASSWORD,
-            'PARSER_CLASS': 'redis.connection.HiredisParser',
-            'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
-            'CONNECTION_POOL_CLASS_KWARGS': {
-                'max_connections': 50,
-                'timeout': 20,
-            }
-        }
+    "default": {
+        "BACKEND": "redis_cache.RedisCache",
+        "LOCATION": BROKER_URL,
+        "OPTIONS": {
+            "DB": 0,
+            "PASSWORD": REDIS_PASSWORD,
+            "PARSER_CLASS": "redis.connection.HiredisParser",
+            "CONNECTION_POOL_CLASS": "redis.BlockingConnectionPool",
+            "CONNECTION_POOL_CLASS_KWARGS": {
+                "max_connections": 50,
+                "timeout": 20,
+            },
+        },
     }
 }
 
 # Django RQ production settings
 RQ_QUEUES = {
-    'default': {
-        'URL': BROKER_URL,
-        'DB': 0,
-        'DEFAULT_TIMEOUT': 500,
+    "default": {
+        "URL": BROKER_URL,
+        "DB": 0,
+        "DEFAULT_TIMEOUT": 500,
     },
 }
 
-VERSATILEIMAGEFIELD_SETTINGS['create_images_on_demand'] = False
+# VERSATILEIMAGEFIELD_SETTINGS['create_images_on_demand'] = False

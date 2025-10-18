@@ -5,7 +5,7 @@ from babel.dates import format_date
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from teams.models import TagObject, Team, TeamSeason, GroupSeason
 # from teams.models import Stadium, Person
@@ -47,24 +47,29 @@ class Tournament(TagObject):
 
             years = first.date_start.year
             if last.date_end.year != years:
-                years = f'{years}-{last.date_end.year}'
+                years = f"{years}-{last.date_end.year}"
         except IndexError:
             years = "-"
 
-        return f'{self.name} ({years})'
+        return f"{self.name} ({years})"
 
 
 class Season(TagObject):
     """Each specific drawing of a Tournament"""
 
     tourn = models.ForeignKey(
-        Tournament, on_delete=models.CASCADE, verbose_name=_("Турнир"), related_name="seasons"
+        Tournament,
+        on_delete=models.CASCADE,
+        verbose_name=_("Турнир"),
+        related_name="seasons",
     )
     date_start = models.DateField(verbose_name=_("Дата начала"))
     date_end = models.DateField(verbose_name=_("Дата окончания"))
 
     participants = models.PositiveSmallIntegerField(
-        verbose_name=_('Число участников'), blank=True, null=True,
+        verbose_name=_("Число участников"),
+        blank=True,
+        null=True,
     )
 
     class Meta:
@@ -119,7 +124,9 @@ class Season(TagObject):
     def change_team(self, old_pk, new_pk):
         """Change team_id for all TeamSeason, GroupSeason, and matches."""
         self.standings.filter(team_id=old_pk).update(team_id=new_pk)
-        GroupSeason.objects.filter(group_id__in=self.groups.values_list('pk', flat=True), team_id=old_pk).update(team_id=new_pk)
+        GroupSeason.objects.filter(
+            group_id__in=self.groups.values_list("pk", flat=True), team_id=old_pk
+        ).update(team_id=new_pk)
         self.matches.filter(home_id=old_pk).update(home_id=new_pk)
         self.matches.filter(away_id=old_pk).update(away_id=new_pk)
 
@@ -127,26 +134,29 @@ class Season(TagObject):
 class Group(models.Model):
     """Stage of a Season: preliminary round, group A/gmroup B, etc."""
 
-    ROUND = 'round-robin'
-    KNOCKOUT = 'knockout'
-    MISC = 'misc'
-    TYPES = (
-        (ROUND, ROUND),
-        (KNOCKOUT, KNOCKOUT),
-        (MISC, MISC)
-    )
+    ROUND = "round-robin"
+    KNOCKOUT = "knockout"
+    MISC = "misc"
+    TYPES = ((ROUND, ROUND), (KNOCKOUT, KNOCKOUT), (MISC, MISC))
 
     name = models.CharField(verbose_name=_("Название"), max_length=127, blank=True)
     season = models.ForeignKey(
-        Season, on_delete=models.CASCADE, verbose_name=_("Розыгрыш"), related_name="groups",
+        Season,
+        on_delete=models.CASCADE,
+        verbose_name=_("Розыгрыш"),
+        related_name="groups",
     )
     round_type = models.CharField(
-        verbose_name=_("Тип игр"), max_length=127, choices=TYPES, default=ROUND,
+        verbose_name=_("Тип игр"),
+        max_length=127,
+        choices=TYPES,
+        default=ROUND,
     )
     date_start = models.DateField(verbose_name=_("Дата начала"))
     date_end = models.DateField(verbose_name=_("Дата окончания"))
     city = models.ForeignKey(
-        "teams.City", on_delete=models.CASCADE, 
+        "teams.City",
+        on_delete=models.CASCADE,
         verbose_name=_("Город"),
         related_name="groups",
         blank=True,
@@ -175,11 +185,11 @@ class Group(models.Model):
 
     def matches(self):
         """Return all matches of the season which belong to the group."""
-        teams = self.teams.values_list('team', flat=True)
+        teams = self.teams.values_list("team", flat=True)
         qs = self.season.matches.filter(home__in=teams, away__in=teams)
         qs = qs.exclude(date__lt=self.date_start)
         qs = qs.exclude(date__gt=self.date_end)
-        return qs.order_by('date', 'pk')
+        return qs.order_by("date", "pk")
 
     def fill_blanks(self):
         for gs in self.standings.all():
@@ -195,24 +205,38 @@ class MatchQuerySet(models.QuerySet):
 
 
 class Match(TagObject):
-
-    _delimiter = '—'
+    _delimiter = "—"
 
     date = models.DateField(verbose_name="Дата матча", blank=True, null=True)
     date_unknown = models.CharField(
         verbose_name="Дата, если неизвестна",
-        max_length=64, blank=True, null=True,
+        max_length=64,
+        blank=True,
+        null=True,
     )
-    display_name = models.CharField(verbose_name="Отображение", max_length=255, blank=True)
+    display_name = models.CharField(
+        verbose_name="Отображение", max_length=255, blank=True
+    )
     tourn_season = models.ForeignKey(
-        Season, on_delete=models.SET_NULL,
-        verbose_name=_("Турнир"), related_name="matches", blank=True, null=True
+        Season,
+        on_delete=models.SET_NULL,
+        verbose_name=_("Турнир"),
+        related_name="matches",
+        blank=True,
+        null=True,
     )
     home = models.ForeignKey(
-        Team, on_delete=models.CASCADE,
-        verbose_name=_("Хозяева"), related_name="home_matches"
+        Team,
+        on_delete=models.CASCADE,
+        verbose_name=_("Хозяева"),
+        related_name="home_matches",
     )
-    away = models.ForeignKey(Team, on_delete=models.CASCADE, verbose_name=_("Гости"), related_name="away_matches")
+    away = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,
+        verbose_name=_("Гости"),
+        related_name="away_matches",
+    )
     home_score = models.PositiveSmallIntegerField(
         verbose_name=_("Счёт хозяев"), blank=True, null=True
     )
@@ -227,9 +251,15 @@ class Match(TagObject):
     )
 
     # в случае потасовки на поле возможно поражение ОБЕИМ командам
-    technical = models.BooleanField(verbose_name=_("Технический результат"), default=False)
-    tech_home_loss = models.BooleanField(verbose_name=_("Поражение хозяевам"), default=False)
-    tech_away_loss = models.BooleanField(verbose_name=_("Поражение гостям"), default=False)
+    technical = models.BooleanField(
+        verbose_name=_("Технический результат"), default=False
+    )
+    tech_home_loss = models.BooleanField(
+        verbose_name=_("Поражение хозяевам"), default=False
+    )
+    tech_away_loss = models.BooleanField(
+        verbose_name=_("Поражение гостям"), default=False
+    )
 
     objects = MatchQuerySet.as_manager()
 
@@ -318,7 +348,7 @@ class Match(TagObject):
         team_season = self.tourn_season.standings.filter(team_id=team_id).first()
         if team_season:
             return team_season.name
-        return ''
+        return ""
 
     def _get_names_for_date(self):
         """Return teams names for a match date"""
@@ -326,8 +356,12 @@ class Match(TagObject):
         away = self._get_name_for_tournament(self.away_id)
         undefined = not home or not away
         if undefined and self.date:
-            home = self.home.get_name_for(self.date.year, self.date.month, self.date.day)
-            away = self.away.get_name_for(self.date.year, self.date.month, self.date.day)
+            home = self.home.get_name_for(
+                self.date.year, self.date.month, self.date.day
+            )
+            away = self.away.get_name_for(
+                self.date.year, self.date.month, self.date.day
+            )
         return home, away
 
     def _get_score(self):
@@ -351,15 +385,13 @@ class Match(TagObject):
         home_score, away_score = self._get_score()
         teams_names = teams or self._get_names_for_date()
         teams_names = f" {self._delimiter} ".join(teams_names)
-        name = "{} {} {}:{}".format(teams_names, self._delimiter, home_score, away_score)
+        name = "{} {} {}:{}".format(
+            teams_names, self._delimiter, home_score, away_score
+        )
 
         # add halftime
-        home_halfscore = (
-            "??" if self.home_halfscore is None else self.home_halfscore
-        )  # noqa
-        away_halfscore = (
-            "??" if self.away_halfscore is None else self.away_halfscore
-        )  # noqa
+        home_halfscore = "??" if self.home_halfscore is None else self.home_halfscore  # noqa
+        away_halfscore = "??" if self.away_halfscore is None else self.away_halfscore  # noqa
         if any((self.home_halfscore is not None, self.away_halfscore is not None)):
             name = "{} ({}:{})".format(name, home_halfscore, away_halfscore)
 
@@ -390,8 +422,7 @@ class Match(TagObject):
         home, away, score = self.display_name.split(self._delimiter)
 
         ts_qs = TeamSeason.objects.filter(
-            season=self.tourn_season,
-            team__in=[self.home, self.away]
+            season=self.tourn_season, team__in=[self.home, self.away]
         )
         ts_instances = {ts.team_id: ts for ts in ts_qs}
 
@@ -406,13 +437,21 @@ class Match(TagObject):
         if self.date_unknown:
             date = f"{self.date_unknown}."
         else:
-            date = format_date(self.date, format='long', locale='ru').replace(' г.', '.')
+            date = format_date(self.date, format="long", locale="ru").replace(
+                " г.", "."
+            )
         return date
 
     def swap(self):
         """Swap home<>away"""
         self.home, self.away = self.away, self.home
         self.home_score, self.away_score = self.away_score, self.home_score
-        self.home_halfscore, self.away_halfscore = self.away_halfscore, self.home_halfscore
-        self.tech_home_loss, self.tech_away_loss = self.tech_away_loss, self.tech_home_loss
+        self.home_halfscore, self.away_halfscore = (
+            self.away_halfscore,
+            self.home_halfscore,
+        )
+        self.tech_home_loss, self.tech_away_loss = (
+            self.tech_away_loss,
+            self.tech_home_loss,
+        )
         self.save()

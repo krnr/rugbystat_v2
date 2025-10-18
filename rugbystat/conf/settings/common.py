@@ -1,143 +1,152 @@
 import os
-from os.path import join
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 INSTALLED_APPS = (
-    'dal',
-    'dal_select2',
+    "dal",
+    "dal_select2",
     # `dal` must be before django.contrib.admin!
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django.contrib.sites',
-
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.sites",
     # Third party apps
-    'allauth',                   # social app login
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.facebook',
-    'rest_framework',
-    'rest_framework.authtoken',  # token authentication
+    "allauth",  # social app login
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.facebook",
+    "rest_framework",
+    "rest_framework.authtoken",  # token authentication
     #  'django_rq',                 # asynchronous queuing
-    'versatileimagefield',       # image manipulation
-    'django_dropbox',
-    'django_extensions',
-    'django_filters',
-    'widget_tweaks',
-    'adminsortable2',
-    'markdownx',
-
+    # "versatileimagefield",  # image manipulation
+    "django_dropbox",
+    "django_extensions",
+    "django_filters",
+    "widget_tweaks",
+    "adminsortable2",
+    "markdownx",
     # Your apps
-    'authentication',
-    'users',
-    'teams',
-    'matches',
-    'clippings',
+    "authentication",
+    "users",
+    "teams",
+    "matches",
+    "clippings",
 )
 
 # https://docs.djangoproject.com/en/1.10/topics/http/middleware/
 MIDDLEWARE = (
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 )
 
-ROOT_URLCONF = 'conf.urls'
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'Not a secret')
-WSGI_APPLICATION = 'conf.wsgi.application'
+ROOT_URLCONF = "conf.urls"
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "Not a secret")
+WSGI_APPLICATION = "conf.wsgi.application"
 
 # Email
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-ADMINS = (
-    ('Author', 'ultrasnet@mail.ru'),
-)
+ADMINS = (("Author", "ultrasnet@mail.ru"),)
 
 # Postgres
-DB_USER = os.environ.get('POSTGRES_USER', 'postgres')
-DB_PASS = os.environ.get('POSTGRES_PASS', '1111')
+DB_USER = os.environ.get("POSTGRES_USER", "postgres")
+DB_PASS = os.environ.get("POSTGRES_PASS", "1111")
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'rugbystat',
-        'USER': DB_USER,
-        'PASSWORD': DB_PASS,
-        'HOST': 'localhost',
-        'PORT': '5432',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "rugbystat",
+        "USER": DB_USER,
+        "PASSWORD": DB_PASS,
+        "HOST": "localhost",
+        "PORT": "5432",
     }
 }
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # General
 APPEND_SLASH = True
-LOGIN_REDIRECT_URL = '/'
-TIME_ZONE = 'Europe/Moscow'
-LANGUAGE_CODE = 'ru-ru'
+LOGIN_REDIRECT_URL = "/"
+TIME_ZONE = "Europe/Moscow"
+LANGUAGE_CODE = "ru-ru"
 LANGUAGES = [
-    ('ru', 'Russian'),
-    ('en', 'English'),
+    ("ru", "Russian"),
+    ("en", "English"),
 ]
 USE_I18N = False
 USE_L10N = False
 USE_TZ = True
-DATE_FORMAT = 'd.m.Y'
+DATE_FORMAT = "d.m.Y"
 DATE_INPUT_FORMATS = [
-    '%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y', # '2006-10-25', '10/25/2006', '10/25/06'
-    '%b %d %Y', '%b %d, %Y',            # 'Oct 25 2006', 'Oct 25, 2006'
-    '%d %b %Y', '%d %b, %Y',            # '25 Oct 2006', '25 Oct, 2006'
-    '%B %d %Y', '%B %d, %Y',            # 'October 25 2006', 'October 25, 2006'
-    '%d %B %Y', '%d %B, %Y',            # '25 October 2006', '25 October, 2006'
-    '%d.%m.%Y',                         # '25.10.2006'
+    "%Y-%m-%d",
+    "%m/%d/%Y",
+    "%m/%d/%y",  # '2006-10-25', '10/25/2006', '10/25/06'
+    "%b %d %Y",
+    "%b %d, %Y",  # 'Oct 25 2006', 'Oct 25, 2006'
+    "%d %b %Y",
+    "%d %b, %Y",  # '25 Oct 2006', '25 Oct, 2006'
+    "%B %d %Y",
+    "%B %d, %Y",  # 'October 25 2006', 'October 25, 2006'
+    "%d %B %Y",
+    "%d %B, %Y",  # '25 October 2006', '25 October, 2006'
+    "%d.%m.%Y",  # '25.10.2006'
 ]
 SITE_ID = 1
 
 # Static Files
-STATIC_ROOT = os.path.join(BASE_DIR, '../static_root')
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'frontend'), ]
-STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "../static_root")
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "frontend"),
+]
+STATIC_URL = "/static/"
 STATICFILES_FINDERS = (
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 )
 
 # Media files
-MEDIA_ROOT = os.path.join(BASE_DIR, '../media_root')
-MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, "../media_root")
+MEDIA_URL = "/media/"
 
-DROPBOX_ACCESS_TOKEN = 'aqY2g6XyAaQAAAAAAAA24-fpNYe81yOtQYAqeNSvQKAjP6YtW6qDrJbAuD0b11Aj'
-DROPBOX_APP_SECRET = 'dlbgflzi8qu0ufr'
+DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_OAUTH2_TOKEN", "a-secret")
+DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET", "a-secret")
 DROPBOX_OAUTH2_TOKEN = DROPBOX_ACCESS_TOKEN
-DEFAULT_FILE_STORAGE = 'storages.backends.dropbox.DropBoxStorage'
+DEFAULT_FILE_STORAGE = "storages.backends.dropbox.DropBoxStorage"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
-        'OPTIONS': {
-            'context_processors': [
-                'django.contrib.auth.context_processors.auth',
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.template.context_processors.i18n',
-                'django.template.context_processors.media',
-                'django.template.context_processors.static',
-                'django.template.context_processors.tz',
-                'django.contrib.messages.context_processors.messages'
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
+        "OPTIONS": {
+            "context_processors": [
+                "django.contrib.auth.context_processors.auth",
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.template.context_processors.i18n",
+                "django.template.context_processors.media",
+                "django.template.context_processors.static",
+                "django.template.context_processors.tz",
+                "django.contrib.messages.context_processors.messages",
             ],
-            'loaders':[
-                ('django.template.loaders.cached.Loader', [
-                    'django.template.loaders.filesystem.Loader',
-                    'django.template.loaders.app_directories.Loader',
-                ]),
+            "loaders": [
+                (
+                    "django.template.loaders.cached.Loader",
+                    [
+                        "django.template.loaders.filesystem.Loader",
+                        "django.template.loaders.app_directories.Loader",
+                    ],
+                ),
             ],
         },
     },
@@ -147,19 +156,21 @@ TEMPLATES = [
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = False
 for config in TEMPLATES:
-    config['OPTIONS']['debug'] = DEBUG
+    config["OPTIONS"]["debug"] = DEBUG
 
 # Password Validation
 # https://docs.djangoproject.com/en/1.10/topics/auth/passwords/#module-django.contrib.auth.password_validation
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
-            'min_length': 9,
-        }
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 9,
+        },
     },
 ]
 
@@ -170,45 +181,36 @@ from .logging import *
 from .social import *
 
 # Custom user app
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = "users.User"
 
 # Django Rest Framework
 REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS':
-        'utils.utils.BasePagination',
-    'PAGE_SIZE': int(os.getenv('DJANGO_PAGINATION_LIMIT', 10)),
-    'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S%z',
-    'DEFAULT_RENDERER_CLASSES': (
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
+    "DEFAULT_PAGINATION_CLASS": "utils.utils.BasePagination",
+    "PAGE_SIZE": int(os.getenv("DJANGO_PAGINATION_LIMIT", 10)),
+    "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S%z",
+    "DEFAULT_RENDERER_CLASSES": (
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
     ),
-    'DEFAULT_FILTER_BACKENDS': (
-        'django_filters.rest_framework.DjangoFilterBackend',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.TokenAuthentication',
-    )
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
+    ),
 }
 
 # Versatile Image Field
-VERSATILEIMAGEFIELD_SETTINGS = {
-    # The amount of time, in seconds, that references to created images
-    # should be stored in the cache. Defaults to `2592000` (30 days)
-    'cache_length': 2592000,
-    'cache_name': 'versatileimagefield_cache',
-    'jpeg_resize_quality': 70,
-    'sized_directory_name': '__sized__',
-    'filtered_directory_name': '__filtered__',
-    'placeholder_directory_name': '__placeholder__',
-    'create_images_on_demand': False
-}
-
-# django-rq
-# Adds dashboard link for queues in /admin, This will override the default
-# admin template so it may interfere with other apps that modify the
-# default admin template. If you're using such an app, simply remove this.
-RQ_SHOW_ADMIN_LINK = True
+# VERSATILEIMAGEFIELD_SETTINGS = {
+#     # The amount of time, in seconds, that references to created images
+#     # should be stored in the cache. Defaults to `2592000` (30 days)
+#     "cache_length": 2592000,
+#     "cache_name": "versatileimagefield_cache",
+#     "jpeg_resize_quality": 70,
+#     "sized_directory_name": "__sized__",
+#     "filtered_directory_name": "__filtered__",
+#     "placeholder_directory_name": "__placeholder__",
+#     "create_images_on_demand": False,
+# }

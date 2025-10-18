@@ -1,17 +1,16 @@
 import operator
+import six
 from functools import reduce
 
 from django.db import models
-from django.utils import six
-from rest_framework.compat import distinct
 from rest_framework.filters import SearchFilter
 
-__author__ = 'krnr'
+__author__ = "krnr"
 
 
 class TeamFullTextFilter(SearchFilter):
-    search_param = 'fulltext'
-    search_fields = ('$story', )
+    search_param = "fulltext"
+    search_fields = ("$story",)
 
     def filter_queryset(self, request, queryset, view):
         search_fields = self.search_fields
@@ -25,11 +24,9 @@ class TeamFullTextFilter(SearchFilter):
             for search_field in search_fields
         ]
 
-        base = queryset
         for search_term in search_terms:
             queries = [
-                models.Q(**{orm_lookup: search_term})
-                for orm_lookup in orm_lookups
+                models.Q(**{orm_lookup: search_term}) for orm_lookup in orm_lookups
             ]
             queryset = queryset.filter(reduce(operator.or_, queries))
 
@@ -38,5 +35,5 @@ class TeamFullTextFilter(SearchFilter):
             # call queryset.distinct() in order to avoid duplicate items
             # in the resulting queryset.
             # We try to avoid this if possible, for performance reasons.
-            queryset = distinct(queryset, base)
+            queryset = queryset.distinct()
         return queryset
