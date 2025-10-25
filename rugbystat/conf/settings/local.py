@@ -33,19 +33,6 @@ DEBUG_TOOLBAR_CONFIG = {
     "SHOW_TEMPLATE_CONTEXT": True,
 }
 
-
-# Testing
-INSTALLED_APPS += ("django_nose",)
-TEST_RUNNER = "django_nose.NoseTestSuiteRunner"
-NOSE_ARGS = [
-    BASE_DIR,
-    "-s",
-    "--nologcapture",
-    "--with-coverage",
-    "--with-progressive",
-    "--cover-package={}".format(BASE_DIR),
-]
-
 # Mail
 EMAIL_HOST = "localhost"
 EMAIL_PORT = 1025
