@@ -95,8 +95,8 @@ def players_from_input(raw_text: str) -> t.Generator:
 
 
 def split_name(player: str) -> t.Tuple[str, str]:
-    if '.' in player:
-        first, last = player.split('.')  # TODO: what if patronymic?
+    if "." in player:
+        first, last = player.split(".")  # TODO: what if patronymic?
         return first.strip(), last.strip()
 
     try:
@@ -141,11 +141,13 @@ def create_season_for_person(person, role, data):
 
 def parse_alphabet(request, data):
     importer = LineImporter()
-    importer.run(data["input"].split('\r\n'))
+    importer.run(data["input"].split("\r\n"))
 
 
 class LineImporter:
-    pattern = re.compile(r"(?P<name>(?:[А-Я][а-я.]*\s*){1,3})(?P<year>\(\d+\) )?— (?P<teams>(([A-Яа-я ]+) (?P<seasons>\((\d+,*\s*)+\)),*\s*)+)(.*)")
+    pattern = re.compile(
+        r"(?P<name>(?:[А-Я][а-я.]*\s*){1,3})(?P<year>\(\d+\) )?— (?P<teams>(([A-Яа-я ]+) (?P<seasons>\((\d+,*\s*)+\)),*\s*)+)(.*)"
+    )
     teams_re = re.compile(r"(\S+ \S+) (?P<seasons>\((\d+,*\s*)+\)),*\s*")
 
     def __init__(self, *args, **kwargs):
@@ -177,13 +179,13 @@ class LineImporter:
 
     def process_line(self, line):
         matches = self.pattern.findall(line)
-        name, year, teams, last, last_name, seasons, last_season, occupation = matches[0]
-        self.create_person(name.strip(), year, occupation)
+        name, year, teams, last, last_name, seasons, last_season, occup = matches[0]
+        self.create_person(name.strip(), year, occup)
         self.parse_seasons(teams, last, last_name, seasons, last_season)
 
     def create_person(self, name, year, occupation):
         if " " in name:
-            name = name.replace('.', ' ').strip().split(' ')
+            name = name.replace(".", " ").strip().split(" ")
             self.p.name = name[0]
             self.p.first_name = name[1]
             if len(name) > 2:
@@ -215,7 +217,7 @@ class LineImporter:
         team_instance = self.get_team_instance(team)
         if not team_instance:
             logger.warning(f"No team found for {team}")
-        for season in seasons[1:-1].split(','):
+        for season in seasons[1:-1].split(","):
             self.m2m.append(
                 PersonSeason(
                     person=self.p,
@@ -236,10 +238,10 @@ def reduce_qs(qs, search_term):
     queries = [
         Q(**{lookup: search_term})
         for lookup in (
-            'name__icontains',
-            'short_name__icontains',
-            'names__name__icontains',
-            'city__name__istartswith',
+            "name__icontains",
+            "short_name__icontains",
+            "names__name__icontains",
+            "city__name__istartswith",
         )
     ]
     return qs.filter(ft.reduce(operator.or_, queries))
@@ -247,14 +249,18 @@ def reduce_qs(qs, search_term):
 
 class Zaal:
     def __init__(self, role, full_name):
-        self.role=role
-        self.first_name=full_name.strip().split()[0]
-        self.last_name=full_name.strip().split()[1]
-        self.django=None
+        self.role = role
+        self.first_name = full_name.strip().split()[0]
+        self.last_name = full_name.strip().split()[1]
+        self.django = None
+
     def __repr__(self):
         return f"{self.first_name} {self.last_name}, {self.role}"
 
-rr = re.compile(r'(?P<first_name>[А-Я][а-я]+)\s+(?P<last_name>[А-Я][а-я]+)\s+.*?(?P<year>\d{4})')
+
+rr = re.compile(
+    r"(?P<first_name>[А-Я][а-я]+)\s+(?P<last_name>[А-Я][а-я]+)\s+.*?(?P<year>\d{4})"
+)
 
 """
 
@@ -274,13 +280,13 @@ rr = re.compile(r'(?P<first_name>[А-Я][а-я]+)\s+(?P<last_name>[А-Я][а-я]
 
 def zaal1(ss):
     res = []
-    for p in players_from_input({'input': ss}):
+    for p in players_from_input({"input": ss}):
         inst = Zaal(*p)
         find_in_db(inst)
         if inst.django:
             print(inst.django, inst.django.year_birth)
         else:
-            print('not found')
+            print("not found")
         res.append(inst)
     return res
 
@@ -295,6 +301,7 @@ def _get_ratios_for_person(queryset, first_name, name):
         ).ratio()
         for obj in queryset
     ]
+
 
 def find_best_match(queryset, name, first_name, ratio_threshold=0.6):
     """
@@ -403,7 +410,9 @@ def parse_season(data, request):
 
 
 def dt_from_str(day, month, year) -> dt.datetime:
-    return dt.datetime.strptime("{}/{}/{}".format(day, MONTHS_MAP[month], year), "%d/%m/%Y")
+    return dt.datetime.strptime(
+        "{}/{}/{}".format(day, MONTHS_MAP[month], year), "%d/%m/%Y"
+    )
 
 
 def find_dates(txt, year):
@@ -451,14 +460,14 @@ def parse_table(data, season, group):
 
 class TableRow:
     def __init__(self, **kwargs):
-        self.place = kwargs.get('place', '')
-        self.name = kwargs.get('name')
-        self.wins = kwargs.get('w')
-        self.draws = kwargs.get('d')
-        self.losses = kwargs.get('l')
-        self.score = kwargs.get('score', '')
-        self.points = kwargs.get('points')
-        self.team_id = kwargs.get('team_id')
+        self.place = kwargs.get("place", "")
+        self.name = kwargs.get("name")
+        self.wins = kwargs.get("w")
+        self.draws = kwargs.get("d")
+        self.losses = kwargs.get("l")
+        self.score = kwargs.get("score", "")
+        self.points = kwargs.get("points")
+        self.team_id = kwargs.get("team_id")
 
     def __repr__(self):
         return f"TableRow(place={self.place}, name={self.name}, team_id={self.team_id})"
@@ -470,23 +479,22 @@ class TableRow:
         """Return Django model instance."""
         if season:
             cls = TeamSeason
-            kwargs = {'season_id': season}
+            kwargs = {"season_id": season}
         if group:
             cls = GroupSeason
-            kwargs = {'group_id': group}
+            kwargs = {"group_id": group}
         return cls(**vars(self), **kwargs)
 
 
 class Match:
-
     model = MatchModel
 
     def __init__(self, *args, **kwargs):
-        self.home_id = kwargs.get('home_id')
-        self.away_id = kwargs.get('away_id')
-        self.home_score = kwargs.get('home_score')
-        self.away_score = kwargs.get('away_score')
-        self.tourn_season_id = kwargs.get('tourn_season_id')
+        self.home_id = kwargs.get("home_id")
+        self.away_id = kwargs.get("away_id")
+        self.home_score = kwargs.get("home_score")
+        self.away_score = kwargs.get("away_score")
+        self.tourn_season_id = kwargs.get("tourn_season_id")
 
     def __repr__(self):
         return (
@@ -511,13 +519,13 @@ class Match:
     @classmethod
     def from_string(cls, home_id, away_id, string):
         home_score, away_score = None, None
-        if ':' in string:
-            home_score, away_score = string.split(':')
-        if string in {'поб', 'побед', 'выиг'}:
+        if ":" in string:
+            home_score, away_score = string.split(":")
+        if string in {"поб", "побед", "выиг"}:
             home_score, away_score = 1, 0
-        if string in {'пор', 'пораж', 'проиг'}:
+        if string in {"пор", "пораж", "проиг"}:
             home_score, away_score = 0, 1
-        if string in {'нич', 'ничья'}:
+        if string in {"нич", "ничья"}:
             home_score, away_score = 1, 1
         return cls(
             home_id=home_id,
@@ -542,12 +550,12 @@ class FullMatch(Match):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.home_halfscore = kwargs.get('home_halfscore')
-        self.away_halfscore = kwargs.get('away_halfscore')
-        self.story = kwargs.get('story', '')
-        self.technical = kwargs.get('technical', False)
-        self.tech_home_loss = kwargs.get('tech_home_loss', False)
-        self.tech_away_loss = kwargs.get('tech_away_loss', False)
+        self.home_halfscore = kwargs.get("home_halfscore")
+        self.away_halfscore = kwargs.get("away_halfscore")
+        self.story = kwargs.get("story", "")
+        self.technical = kwargs.get("technical", False)
+        self.tech_home_loss = kwargs.get("tech_home_loss", False)
+        self.tech_away_loss = kwargs.get("tech_away_loss", False)
 
 
 EDGE = "xxxxx"
@@ -559,8 +567,11 @@ class SimpleTable:
     line may be any representation in table:
 
     1. Динамо                     xxxxx  22:6    поб   13:3   20:0    поб
+
     5. "Спартак" Ленинград      6:18   0:6    0:3    0:8   xxxxx  20:8   1 0 4  26-43  2
+
     1. "СТАКЛЕС" Каунас            6  0  2  164:72   12 *
+
     1. Крылья Советов Москва
     . Скра
     2. Политехник Киев
@@ -605,7 +616,7 @@ class SimpleTable:
         previous_idx = -100
         bounds = []
         for idx, letter in enumerate(line):
-            if letter == ' ':
+            if letter == " ":
                 if previous_idx + 1 == idx:
                     # consecutive whitespace found
                     if bounds and bounds[-1] == previous_idx:
@@ -625,34 +636,103 @@ class SimpleTable:
     def find_teams(self, season=None):
         # if TeamSeason-s exist, try them first to get a team name
         year = season.date_start.year if season else None
-        self._season_id = season.id
-        names = dict(season.standings.values_list('team_id', 'name'))
+        self._season_id = season.id if season else None
+        names = dict(season.standings.values_list("team_id", "name")) if season else {}
 
         for line, marks in zip(self._lines, self._column_marks):
+            # Extract team name from the beginning of the line
             if marks:
-                line = line[:marks[0]]
-            place, team = line.split(".", 1)
-            team = team.strip().replace('"', '')
-
-            ratios = {fuzz.token_set_ratio(team, sn): team_id for team_id, sn in names.items()}
-            if ratios and max(ratios) > TEAM_SIMILAR_THRESHOLD:
-                team_id = ratios[max(ratios)]
-                team = names[team_id]
+                team_part = line[: marks[0]]
             else:
-                team = team.replace('.', '').strip()
-                team_id = find_team_name_match(team, year)
-            row = TableRow(place=place.strip(), name=team, team_id=team_id)
+                team_part = line
+
+            # Split on first dot to separate place from team name
+            if "." in team_part:
+                parts = team_part.split(".", 1)
+                place = parts[0].strip()
+                team = parts[1].strip() if len(parts) > 1 else ""
+            else:
+                # No dot found, treat entire part as team name with no place
+                place = ""
+                team = team_part.strip()
+
+            # Clean up team name
+            team = team.replace('"', "").strip()
+
+            # Skip empty team names
+            if not team:
+                continue
+
+            # Try to match with existing teams
+            team_id = None
+            if names:
+                ratios = {
+                    fuzz.token_set_ratio(team, sn): team_id
+                    for team_id, sn in names.items()
+                }
+                if ratios and max(ratios) > TEAM_SIMILAR_THRESHOLD:
+                    team_id = ratios[max(ratios)]
+                    team = names[team_id]
+
+            # Fallback to find_team_name_match if no match found
+            if not team_id:
+                team = team.replace(".", "").strip()
+                team_id = (
+                    find_team_name_match(team, year)
+                    if "find_team_name_match" in globals()
+                    else None
+                )
+
+            row = TableRow(place=place, name=team, team_id=team_id)
             self._teams.append(row)
         return self
 
     def find_matches(self):
+        if not self._teams:
+            return self
+
+        # Check if there are any columns with match data
+        has_match_data = False
+        for parts in self._column_parts:
+            if parts and len(parts) > 1:
+                for part in parts:
+                    if part and ":" in part or "-" in part or part in {EDGE, EDGE_RU}:
+                        has_match_data = True
+                        break
+            if has_match_data:
+                break
+
+        if not has_match_data:
+            # No matches - only team names or standings without match matrix
+            return self
+
         if not self._column_marks[0]:
             # no columns - no matches. it's only a team name
             return self
-        place1, place2, place3 = self._column_parts[:3]
-        if len(place1) > len(place2) > len(place3):
+
+        # Count how many parts each row has
+        part_counts = [
+            len(parts) if parts else 0
+            for parts in self._column_parts[: min(3, len(self._column_parts))]
+        ]
+
+        # If first rows have decreasing number of parts, it's likely one-legged
+        if len(part_counts) >= 3 and part_counts[0] > part_counts[1] > part_counts[2]:
             return self._find_in_oneleg_table()
-        return self._find_in_full_table()
+
+        # Check if it's a full matrix (two-legged or symmetric)
+        total_teams = len(self._teams)
+        is_full_matrix = True
+        for idx, parts in enumerate(self._column_parts[:total_teams]):
+            if not parts or len(parts) < total_teams:
+                is_full_matrix = False
+                break
+
+        if is_full_matrix:
+            return self._find_in_full_table()
+
+        # Default to one-legged if structure is unclear but has some match data
+        return self._find_in_oneleg_table()
 
     def _find_in_full_table(self):
         """Find matches in fully filled table.
@@ -689,19 +769,38 @@ class SimpleTable:
             if not table_row:
                 logger.warning(f"no table_row in table: {self}")
                 break
-            if table_row[0] in {EDGE, EDGE_RU}:
-                self._parse_matches(total, [""] * position + table_row, position)
-            try:
-                # parse games part: ['12 1 1', 'xxx-xx', '25']
-                self._parse_standings(table_row, total - position, position)
-            except IndexError as exc:
-                logger.warning(f"No stadings in the table. {exc}")
-                logger.warning(f"parts={table_row}, start_idx={total - position}")
+
+            # Find where matches start (looking for xxxxx or EDGE markers)
+            match_start_idx = -1
+            for idx, cell in enumerate(table_row):
+                if cell in {EDGE, EDGE_RU}:
+                    match_start_idx = idx
+                    break
+
+            if match_start_idx >= 0:
+                # Parse matches starting from the position column
+                match_parts = [""] * position + table_row[match_start_idx:]
+                self._parse_matches(total, match_parts, position)
+
+                # Parse standings after matches
+                standings_start = match_start_idx + (total - position)
+                try:
+                    self._parse_standings(table_row, standings_start, position)
+                except IndexError as exc:
+                    logger.warning(f"No stadings in the table. {exc}")
+            else:
+                # No matches found, try to parse standings from beginning
+                try:
+                    self._parse_standings(table_row, 0, position)
+                except IndexError as exc:
+                    logger.warning(f"No stadings in the table. {exc}")
         return self
 
     def latvian_table(self):
         """Parse table without matches - only standings."""
         for position, table_row in enumerate(self._column_parts):
+            if not table_row:
+                continue
             try:
                 # parse games part: ['12 1 1', 'xxx-xx', '25']
                 self._parse_standings(table_row, 0, position)
@@ -713,6 +812,8 @@ class SimpleTable:
     def _parse_matches(self, num_teams, match_parts, team_idx):
         # TODO: parse two_legged tables
         for match_idx in range(team_idx, num_teams):
+            if match_idx >= len(match_parts):
+                break
             match_str = match_parts[match_idx]
             if match_str and match_str not in {EDGE, EDGE_RU}:
                 match = Match.from_string(
@@ -724,10 +825,17 @@ class SimpleTable:
                 self._matches[(team_idx, match_idx)] = match
 
     def _parse_standings(self, match_parts, start_idx, team_idx):
+        if team_idx >= len(self._teams):
+            return
+
+        if start_idx >= len(match_parts):
+            return
+
         first = match_parts[start_idx]
-        to_parse = match_parts[start_idx+1:]
+        to_parse = match_parts[start_idx + 1 :]
         team = self._teams[team_idx]
-        if ' ' in first:
+
+        if " " in first:
             w_d_l = first.split()
             w_d_l.extend(to_parse)
             to_parse = w_d_l
@@ -754,16 +862,6 @@ class SimpleTable:
 
     @property
     def matches(self):
-        # two_legged = True
-        # to_return = []
-        # for (i, j), match in self._matches.items():
-        #     if j > i:
-        #         if match == self._matches.get((j, i)):
-        #             two_legged = False
-        #         to_return.append(match)
-        #     if two_legged:
-        #         if i > j:
-        #             to_return.append(match)
         return self._matches.values()
 
 
@@ -782,17 +880,21 @@ def find_team_name_match(search_name, year=None):
  WHERE t.name LIKE '{name}%'{condition}"""
 
     with connection.cursor() as cursor:
-        sqlite_ver = "strftime('%Y', from_day) as year, strftime('%Y', to_day) as disband_year"
+        sqlite_ver = (
+            "strftime('%Y', from_day) as year, strftime('%Y', to_day) as disband_year"
+        )
         extract_years = "extract(year from from_day) as year, extract(year from to_day) as disband_year"
-        if cursor.db.client_class.executable_name == 'sqlite3':
+        if cursor.db.client_class.executable_name == "sqlite3":
             extract_years = sqlite_ver
 
         given_names = (
-            f"SELECT team_id, tn.name as team_name, c.name as city, {extract_years}" + """
+            f"SELECT team_id, tn.name as team_name, c.name as city, {extract_years}"
+            + """
   FROM teams_teamname tn
  INNER JOIN teams_team tt ON tt.tagobject_ptr_id=tn.team_id
  INNER JOIN teams_city c ON c.id = tt.city_id
- WHERE tn.name LIKE '{name}%'{condition}""")
+ WHERE tn.name LIKE '{name}%'{condition}"""
+        )
 
         sql = f"""SELECT * FROM (
  {base_name}
@@ -803,10 +905,7 @@ def find_team_name_match(search_name, year=None):
         cursor.execute(sql)
         res = cursor.fetchall()
 
-    ratios = [
-        fuzz.token_set_ratio(search_name, f"{obj[1]} {obj[2]}")
-        for obj in res
-    ]
+    ratios = [fuzz.token_set_ratio(search_name, f"{obj[1]} {obj[2]}") for obj in res]
 
     if ratios and max(ratios) > TEAM_SIMILAR_THRESHOLD:
         found = res[ratios.index(max(ratios))][0]
@@ -815,13 +914,15 @@ def find_team_name_match(search_name, year=None):
     return found
 
 
-DAY_RE = re.compile(r'((?P<day>\d{1,2})|(?P<unknown>\?+)) (?P<month>[а-я]+)')
-MATCH_RE = re.compile(r"(?P<home>[А-Я() -]+) - (?P<away>[А-Я() -]+) - (?P<outcome>[А-Я ]+|(?P<full_score>\d+:\d+)(?P<half_score> \(\d+:\d+\))?(?P<scorers> - .+)?)?", re.MULTILINE | re.IGNORECASE)
-SCORE_RE = re.compile(r'(\d+):(\d+)')
+DAY_RE = re.compile(r"((?P<day>\d{1,2})|(?P<unknown>\?+)) (?P<month>[а-я]+)")
+MATCH_RE = re.compile(
+    r"(?P<home>[А-Я() -]+) - (?P<away>[А-Я() -]+) - (?P<outcome>[А-Я ]+|(?P<full_score>\d+:\d+)(?P<half_score> \(\d+:\d+\))?(?P<scorers> - .+)?)?",
+    re.MULTILINE | re.IGNORECASE,
+)
+SCORE_RE = re.compile(r"(\d+):(\d+)")
 
 
 class CalendarParser:
-
     def __init__(self, lines: t.List[str], teams: t.Dict[str, int]):
         self._lines = lines
         self._matches: t.List[FullMatch] = []
@@ -847,8 +948,8 @@ class CalendarParser:
 
     @classmethod
     def build(cls, text, season):
-        teams = dict(season.standings.values_list('name', 'team_id'))
-        return cls(text.split('\n'), teams)
+        teams = dict(season.standings.values_list("name", "team_id"))
+        return cls(text.split("\n"), teams)
 
     def find_matches(self, group, season):
         match = None
@@ -878,7 +979,9 @@ class CalendarParser:
             if "match" in line:
                 match = FullMatch()
                 continue  # next line will contain teams
-            if match and match == FullMatch():  # for comments lines match is already built
+            if (
+                match and match == FullMatch()
+            ):  # for comments lines match is already built
                 match_line = num
                 match = self.parse_match(line.strip())
                 if not match:
@@ -889,7 +992,7 @@ class CalendarParser:
                 instance = match.build()
                 instance.date = date or default_date
                 if is_unknown:
-                    instance.date_unknown = instance.date.strftime('%Y-%m-xx')
+                    instance.date_unknown = instance.date.strftime("%Y-%m-xx")
                 if num > match_line:
                     instance.story = add_to_story(instance.story, line)
                 self._matches.append(instance)
@@ -907,13 +1010,13 @@ class CalendarParser:
     def parse_date(self, line: str, year: int) -> t.Tuple[t.Optional[dt.date], bool]:
         is_unknown = False
         for match in DAY_RE.finditer(line):
-            key, _ = process.extractOne(match.groupdict()['month'], set(MONTHS_MAP))
+            key, _ = process.extractOne(match.groupdict()["month"], set(MONTHS_MAP))
             m = int(MONTHS_MAP[key])
-            if match.groupdict()['unknown']:
+            if match.groupdict()["unknown"]:
                 d = 1
                 is_unknown = True
             else:
-                d = int(match.groupdict()['day'])
+                d = int(match.groupdict()["day"])
             return dt.date(year, m, d), is_unknown
         return None, True
 
@@ -943,15 +1046,21 @@ class CalendarParser:
         """
         m = None
         for match in MATCH_RE.finditer(txt):
-            name, _ = process.extractOne(match.groupdict()['home'], set(self._team_names))
+            name, _ = process.extractOne(
+                match.groupdict()["home"], set(self._team_names)
+            )
             home_id = self._team_names[name]
-            name, _ = process.extractOne(match.groupdict()['away'], set(self._team_names))
+            name, _ = process.extractOne(
+                match.groupdict()["away"], set(self._team_names)
+            )
             away_id = self._team_names[name]
 
-            if match.groupdict()['full_score']:
-                m = FullMatch.from_string(home_id, away_id, match.groupdict()['full_score'])
+            if match.groupdict()["full_score"]:
+                m = FullMatch.from_string(
+                    home_id, away_id, match.groupdict()["full_score"]
+                )
             else:
-                out = match.groupdict()['outcome']
+                out = match.groupdict()["outcome"]
                 m = FullMatch(home_id=home_id, away_id=away_id)
                 if not out:
                     return m
@@ -959,20 +1068,24 @@ class CalendarParser:
                     m.home_score = 1
                     m.away_score = 1
                 else:
-                    choices = [match.groupdict()['home'], match.groupdict()['away']]
+                    choices = [match.groupdict()["home"], match.groupdict()["away"]]
                     winner, _ = process.extractOne(out, choices)
-                    if winner == match.groupdict()['home']:
+                    if winner == match.groupdict()["home"]:
                         m.tech_away_loss = True
                     else:
                         m.tech_home_loss = True
 
-            if match.groupdict()['half_score']:
-                home, away = SCORE_RE.findall(match.groupdict()['half_score'])[0]
+            if match.groupdict()["half_score"]:
+                home, away = SCORE_RE.findall(match.groupdict()["half_score"])[0]
                 m.home_halfscore = int(home)
                 m.away_halfscore = int(away)
 
-            if match.groupdict()['scorers']:
-                m.story = match.groupdict()['scorers'].replace('<br>', '\n\n').replace('</div>', '\n\n')
+            if match.groupdict()["scorers"]:
+                m.story = (
+                    match.groupdict()["scorers"]
+                    .replace("<br>", "\n\n")
+                    .replace("</div>", "\n\n")
+                )
             return m
 
 
@@ -983,37 +1096,6 @@ def parse_matches(data, season, group):
 
 
 def add_to_story(story, line):
-    story = story.replace('<br>', '\n\n') if story else ''
-    line = line.strip().replace('<br>', '\n\n').replace('</div>', '')
+    story = story.replace("<br>", "\n\n") if story else ""
+    line = line.strip().replace("<br>", "\n\n").replace("</div>", "")
     return story + line
-
-
-# Nalchik
-import string
-YEAR_RE = re.compile(r"(?P<year>(\d{4}-)?\d{4}) год")
-LINE_RE = re.compile(r"(?P<name>[А-Я]{3,100}( [А-Я]+)?( [А-Я]+)?).(?P<year>\(\d{4}\))?(?P<text>.+)")
-
-"""
-    create = []
-    for ll in lines.split('\n'):
-        last_name, first_name, middle_name = "", "", ""
-        matched = LINE_RE.search(ll).groupdict()
-        name = string.capwords(matched['name'])
-        if len(name.split()) == 3:
-            last_name, first_name, middle_name = name.split()
-        elif len(name.split()) == 2:
-            last_name, first_name = name.split()
-        else:
-            last_name = name
-        p = Person(name=last_name, first_name=first_name, middle_name=middle_name)
-        p.year_birth = matched['year'][1:-1]
-        years = YEAR_RE.search(matched['text']).groupdict().get("year")
-        seasons = []
-        if "-" in years:
-            start, end = years.split("-")
-            for yy in range(int(start), int(end) + 1):
-                seasons.append(PersonSeason(person=p, role=PersonSeason.PLAYER, year=yy, team=team))
-        else:
-            seasons.append(PersonSeason(person=p, role=PersonSeason.PLAYER, year=years, team=team))
-        create.append({"player": p, "seasons": seasons})
-"""
