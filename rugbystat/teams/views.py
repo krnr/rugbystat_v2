@@ -4,7 +4,7 @@ from functools import reduce
 from dal import autocomplete
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Case, Q, Value, When, IntegerField
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import reverse_lazy
@@ -42,7 +42,14 @@ class TagAutocomplete(autocomplete.Select2QuerySetView):
         qs = TagObject.objects.all()
 
         if self.q:
-            qs = qs.filter(name__icontains=self.q)
+            annotation = Case(
+                When(team__isnull=False, then=Value(1)),
+                When(season__isnull=False, then=Value(2)),
+                default=Value(100),
+                output_field=IntegerField(),
+            )
+            qs = qs.filter(name__icontains=self.q).annotate(model_order=annotation)
+            qs = qs.order_by("model_order", "id")
 
         return qs
 
@@ -277,4 +284,3 @@ class PersonUpdateView(UpdateView):
         if not request.user.is_authenticated:
             raise PermissionDenied
         return super().post(request, *args, **kwargs)
-
