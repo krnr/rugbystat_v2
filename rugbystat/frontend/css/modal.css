@@ -11,3 +11,7 @@
   display: table;
   table-layout: fixed;
 }
+
+.tbl-story {
+  max-width: 250px;
+}
