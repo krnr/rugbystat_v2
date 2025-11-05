@@ -1021,29 +1021,7 @@ class CalendarParser:
         return None, True
 
     def parse_match(self, txt) -> dict:
-        """Find parts of a match.
-
-        >>> txt = (
-                "Маяк - Спартак Нч - 14:12 (6:6) - п: 6:0, ... / п: А.Смойлов (6:6)...\n"
-                "ВВА - Маяк - 47:0\n"
-                "Зенит - Маяк - победа Зенита\n"
-                "ВВА - СМИ - </div>\n"
-                "Енисей-СТМ - Луч-СМИ - 16:0"
-            )
-        >>> for i, match in enumerate(MATCH_RE.finditer(txt), start=1):
-                print ("Match {} was found".format(i))
-                print(match.groupdict())
-        # Match 1 was found
-        # {'home': 'Маяк', 'away': 'Спартак Нч', 'outcome': '14:12 (6:6) - п: 6:0, ... / п: А.Смойлов (6:6)...', 'full_score': '14:12', 'half_score': ' (6:6)', 'scorers': ' - п: 6:0, ... / п: А.Смойлов (6:6)...'}
-        # Match 2 was found
-        # {'home': 'ВВА', 'away': 'Маяк', 'outcome': '47:0', 'full_score': '47:0', 'half_score': None, 'scorers': None}
-        # Match 3 was found
-        # {'home': 'Зенит', 'away': 'Маяк', 'outcome': 'победа Зенита', 'full_score': None, 'half_score': None, 'scorers': None}
-        # Match 4 was found
-        # {'home': 'ВВА', 'away': 'СМИ', 'outcome': None, 'full_score': None, 'half_score': None, 'scorers': None}
-        # Match 5 was found
-        # {'home': 'Енисей-СТМ', 'away': 'Луч-СМИ', 'outcome': '16:0', 'full_score': '16:0', 'half_score': None, 'scorers': None}
-        """
+        """Find parts of a match."""
         m = None
         for match in MATCH_RE.finditer(txt):
             name, _ = process.extractOne(

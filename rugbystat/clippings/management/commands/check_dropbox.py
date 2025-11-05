@@ -8,6 +8,7 @@ from clippings.utils import process_user
 
 
 logger = logging.getLogger("django.request")
+logger.setLevel(logging.DEBUG)
 
 
 class Command(BaseCommand):
