@@ -5,9 +5,9 @@ import logging
 import operator
 import re
 import typing as t
+from dataclasses import dataclass
 from difflib import SequenceMatcher as SM
 
-import dateparser
 from django.contrib import messages
 from django.db import IntegrityError, connection
 from django.db.models import Q
@@ -921,26 +921,105 @@ MATCH_RE = re.compile(
 )
 SCORE_RE = re.compile(r"(\d+):(\d+)")
 
+UNCERTAIN_SCORE_RE = re.compile(r'[пшдгрт][а-я]*:\s*\?')
+SCORER_CONT_RE = re.compile(r'^[пшдгрт][а-я]*:')
+
+DIV_TAGS = {
+    'match':  ("<div class='match'>",  '<div class="match">'),
+    'lineup': ("<div class='lineup'>", '<div class="lineup">'),
+    'txt':    ("<div class='txt'>",    '<div class="txt">'),
+}
+
+
+@dataclass
+class _DateState:
+    default_date: dt.date
+    date: t.Optional[dt.date] = None
+    is_unknown: bool = False
+
+    def set_explicit(self, date: dt.date, is_unknown: bool = False):
+        self.date = date
+        self.default_date = date
+        self.is_unknown = is_unknown
+
+    def roll(self):
+        self.default_date = (self.date or self.default_date) + dt.timedelta(days=1)
+        self.date = None
+        self.is_unknown = True
+
+    def snapshot(self) -> '_DateState':
+        from copy import copy
+        return copy(self)
+
+
+@dataclass
+class _BlankEvent:
+    pass
+
+@dataclass
+class _DateLineEvent:
+    line: str
+
+@dataclass
+class _MatchDivEvent:
+    lines: t.List[str]
+
+@dataclass
+class _LineupDivEvent:
+    lines: t.List[str]
+
+
+def _iter_events(lines: t.List[str]):
+    """Convert raw lines into typed events, handling div accumulation."""
+    accumulating = None
+    accumulated = []
+
+    for raw_line in lines:
+        line = raw_line.replace("<br>", "\n").strip()
+
+        if accumulating:
+            accumulated.append(raw_line)
+            if "</div>" in raw_line:
+                if accumulating == 'match':
+                    yield _MatchDivEvent(list(accumulated))
+                elif accumulating == 'lineup':
+                    yield _LineupDivEvent(list(accumulated))
+                # txt: discard
+                accumulating = None
+                accumulated = []
+            continue
+
+        if not line:
+            yield _BlankEvent()
+            continue
+
+        if any(t in raw_line for t in DIV_TAGS['match']):
+            accumulating = 'match'
+            accumulated = [raw_line]
+        elif any(t in raw_line for t in DIV_TAGS['lineup']):
+            accumulating = 'lineup'
+            accumulated = [raw_line]
+        elif any(t in raw_line for t in DIV_TAGS['txt']):
+            accumulating = 'txt'
+            accumulated = [raw_line]
+        else:
+            yield _DateLineEvent(line)
+
+    # EOF: yield any unclosed div
+    if accumulating == 'match' and accumulated:
+        yield _MatchDivEvent(list(accumulated))
+    elif accumulating == 'lineup' and accumulated:
+        yield _LineupDivEvent(list(accumulated))
+
 
 class CalendarParser:
     def __init__(self, lines: t.List[str], teams: t.Dict[str, int]):
         self._lines = lines
         self._matches: t.List[FullMatch] = []
         self._team_names = teams
-        self._current_line = -1
 
     def __repr__(self):
         return f"Calendar: matches={self._matches}, teams={self._team_names}"
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        self._current_line += 1
-        try:
-            return self._lines[self._current_line]
-        except IndexError:
-            raise StopIteration
 
     @property
     def matches(self):
@@ -951,120 +1030,197 @@ class CalendarParser:
         teams = dict(season.standings.values_list("name", "team_id"))
         return cls(text.split("\n"), teams)
 
+    # ── Story helpers ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _add_to_story(current: str, new: str) -> str:
+        if not current:
+            return new
+        if not new:
+            return current
+        return f"{current}\n\n{new}"
+
+    @staticmethod
+    def _extract_story_from_match_line(line: str) -> str:
+        for m in MATCH_RE.finditer(line):
+            scorers = (m.groupdict().get('scorers') or '').strip()
+            for prefix in (' - ', ' -', '- ', '-'):
+                if scorers.startswith(prefix):
+                    scorers = scorers[len(prefix):]
+                    break
+            return scorers.strip()
+        return ''
+
+    @staticmethod
+    def _is_uncertain_score(line: str) -> bool:
+        return line.rstrip().endswith('?') and not UNCERTAIN_SCORE_RE.search(line)
+
+    @staticmethod
+    def _extract_uncertain_outcome(full_match_line: str) -> str:
+        parts = full_match_line.split(' - ', 2)
+        return parts[2].strip() if len(parts) >= 3 else ''
+
+    # ── Div processing ────────────────────────────────────────────────────────
+
+    def _process_match_div(self, event: _MatchDivEvent) -> t.Tuple[t.Optional[str], str]:
+        """Returns (first_line, story_content) for a match div."""
+        lines_to_join = []
+        for l in event.lines:
+            for tag in (*DIV_TAGS['match'], "</div>", "<br>", "<br />", "<br/>"):
+                l = l.replace(tag, "")
+            if l.strip():
+                lines_to_join.append(l.strip())
+
+        if not lines_to_join:
+            return None, ''
+
+        # First line + scorer continuations joined with space;
+        # everything else \n\n separated.
+        scorer_parts = [lines_to_join[0]]
+        rest = []
+        for l in lines_to_join[1:]:
+            is_continuation = (
+                scorer_parts[-1].rstrip().endswith(',') or
+                SCORER_CONT_RE.match(l)
+            )
+            if not rest and is_continuation:
+                scorer_parts.append(l)
+            else:
+                rest.append(l)
+
+        full_match_line = ' '.join(scorer_parts)
+        first_line = scorer_parts[0]
+
+        if self._is_uncertain_score(full_match_line):
+            story_content = ''
+            for l in rest:
+                story_content = self._add_to_story(story_content, l)
+            story_content = self._add_to_story(
+                story_content,
+                self._extract_uncertain_outcome(full_match_line)
+            )
+        else:
+            story_content = self._extract_story_from_match_line(full_match_line)
+            for l in rest:
+                story_content = self._add_to_story(story_content, l)
+
+        return first_line, story_content
+
+    def _process_lineup_div(self, event: _LineupDivEvent) -> str:
+        """Reassemble lineup div as clean HTML with space-joined inner content."""
+        inner = ' '.join(l.strip() for l in event.lines if l.strip())
+        for tag in (*DIV_TAGS['lineup'], "</div>"):
+            inner = inner.replace(tag, "")
+        return f"<div class='lineup'>\n{inner.strip()}\n</div>"
+
+    # ── Main entry point ──────────────────────────────────────────────────────
+
     def find_matches(self, group, season):
+        ds = _DateState(default_date=group.date_start)
         match = None
-        date = None
-        default_date = group.date_start
-        is_unknown = False
-        match_line = -1
+        match_first_line = None
+        match_date_snapshot = None
+        last_was_match = False
 
-        for num, line in enumerate(self):
-            # emtpy line = new day
-            if not line.strip():
-                if date:
-                    default_date = date + dt.timedelta(days=1)
-                else:
-                    default_date = default_date + dt.timedelta(days=1)
-                date = None
-                continue
-
-            is_new_date = DAY_RE.match(line) and dateparser.parse(line)
-            is_new_tour = date is None and not is_unknown
-            if is_new_date or is_new_tour:
-                parsed, is_unknown = self.parse_date(line, group.date_start.year)
-                if parsed:
-                    date = parsed
-                    continue
-
-            if "match" in line:
-                match = FullMatch()
-                continue  # next line will contain teams
-            if (
-                match and match == FullMatch()
-            ):  # for comments lines match is already built
-                match_line = num
-                match = self.parse_match(line.strip())
-                if not match:
-                    print("can't parse", line)
-                    continue
-                match.tourn_season_id = season.id
-            if "</div>" in line and match:
-                instance = match.build()
-                instance.date = date or default_date
-                if is_unknown:
+        def finalize():
+            nonlocal match, match_first_line, match_date_snapshot
+            if not match:
+                return
+            parsed = self.parse_match(match_first_line)
+            if parsed:
+                match.home_id = parsed.home_id
+                match.away_id = parsed.away_id
+                match.home_score = parsed.home_score
+                match.away_score = parsed.away_score
+                match.home_halfscore = parsed.home_halfscore
+                match.away_halfscore = parsed.away_halfscore
+            instance = match.build()
+            snap = match_date_snapshot
+            if snap.date:
+                instance.date = snap.date
+                instance.date_unknown = None
+            else:
+                instance.date = snap.default_date
+                if snap.is_unknown:
                     instance.date_unknown = instance.date.strftime("%Y-%m-xx")
-                if num > match_line:
-                    instance.story = add_to_story(instance.story, line)
-                self._matches.append(instance)
-                match = None
-                is_unknown = False
-            if "<div class='txt'>" in line or '<div class="txt">' in line:
-                # comment to the last appended match
-                match = self._matches[-1]
-                while "/div" not in line:
-                    line = next(self)
-                    match.story = add_to_story(match.story, line)
-                match = None
+            self._matches.append(instance)
+            match = None
+            match_first_line = None
+            match_date_snapshot = None
+
+        for event in _iter_events(self._lines):
+
+            if isinstance(event, _BlankEvent):
+                if last_was_match:
+                    ds.roll()
+                    last_was_match = False
+
+            elif isinstance(event, _DateLineEvent):
+                parsed, is_unknown = self.parse_date(event.line, group.date_start.year)
+                if parsed:
+                    finalize()
+                    ds.set_explicit(parsed, is_unknown)
+                    last_was_match = False
+
+            elif isinstance(event, _MatchDivEvent):
+                finalize()
+                match_first_line, story_content = self._process_match_div(event)
+                match = FullMatch()
+                match.tourn_season_id = season.id
+                match.story = story_content or ''
+                match_date_snapshot = ds.snapshot()
+                last_was_match = True
+
+            elif isinstance(event, _LineupDivEvent):
+                if match:
+                    match.story = self._add_to_story(
+                        match.story, self._process_lineup_div(event)
+                    )
+
+        finalize()
         return self
 
+    # ── Parsing ───────────────────────────────────────────────────────────────
+
     def parse_date(self, line: str, year: int) -> t.Tuple[t.Optional[dt.date], bool]:
-        is_unknown = False
         for match in DAY_RE.finditer(line):
-            key, _ = process.extractOne(match.groupdict()["month"], set(MONTHS_MAP))
+            data = match.groupdict()
+            month_str = data.get("month")
+            if not month_str:
+                continue
+            key, _ = process.extractOne(month_str, set(MONTHS_MAP))
             m = int(MONTHS_MAP[key])
-            if match.groupdict()["unknown"]:
-                d = 1
-                is_unknown = True
-            else:
-                d = int(match.groupdict()["day"])
-            return dt.date(year, m, d), is_unknown
-        return None, True
+            if data.get("unknown"):
+                return dt.date(year, m, 1), True
+            return dt.date(year, m, int(data.get("day", 1))), False
+        return None, False
 
-    def parse_match(self, txt) -> dict:
+    def parse_match(self, txt) -> t.Optional[FullMatch]:
         """Find parts of a match."""
-        m = None
+        if not txt:
+            return None
         for match in MATCH_RE.finditer(txt):
-            name, _ = process.extractOne(
-                match.groupdict()["home"], set(self._team_names)
+            home_name, _ = process.extractOne(
+                match.groupdict()["home"].strip(), set(self._team_names)
             )
-            home_id = self._team_names[name]
-            name, _ = process.extractOne(
-                match.groupdict()["away"], set(self._team_names)
+            away_name, _ = process.extractOne(
+                match.groupdict()["away"].strip(), set(self._team_names)
             )
-            away_id = self._team_names[name]
-
-            if match.groupdict()["full_score"]:
-                m = FullMatch.from_string(
-                    home_id, away_id, match.groupdict()["full_score"]
-                )
-            else:
-                out = match.groupdict()["outcome"]
+            home_id = self._team_names.get(home_name)
+            away_id = self._team_names.get(away_name)
+            if home_id and away_id:
                 m = FullMatch(home_id=home_id, away_id=away_id)
-                if not out:
-                    return m
-                if out == "ничья":
-                    m.home_score = 1
-                    m.away_score = 1
-                else:
-                    choices = [match.groupdict()["home"], match.groupdict()["away"]]
-                    winner, _ = process.extractOne(out, choices)
-                    if winner == match.groupdict()["home"]:
-                        m.tech_away_loss = True
-                    else:
-                        m.tech_home_loss = True
-
-            if match.groupdict()["half_score"]:
-                home, away = SCORE_RE.findall(match.groupdict()["half_score"])[0]
-                m.home_halfscore = int(home)
-                m.away_halfscore = int(away)
-
-            if match.groupdict()["scorers"]:
-                m.story = (
-                    match.groupdict()["scorers"]
-                    .replace("<br>", "\n\n")
-                    .replace("</div>", "\n\n")
-                )
-            return m
+                if match.groupdict()["full_score"]:
+                    scores = match.groupdict()["full_score"].split(':')
+                    m.home_score = int(scores[0])
+                    m.away_score = int(scores[1])
+                if match.groupdict()["half_score"]:
+                    half = SCORE_RE.findall(match.groupdict()["half_score"])
+                    if half:
+                        m.home_halfscore = int(half[0][0])
+                        m.away_halfscore = int(half[0][1])
+                return m
+        return None
 
 
 def parse_matches(data, season, group):
