@@ -456,7 +456,7 @@ class TeamSeason(TableRowFields):
 
     @transaction.atomic()
     def change_team(self, team: Team):
-        """Replace links to team in all entities of the season: groups, matches, tags."""
+        """Replace links to team in all entities of the season: groups, matches, tags, players."""
         from clippings.models import Document
 
         old_team_id = self.team_id
@@ -469,6 +469,10 @@ class TeamSeason(TableRowFields):
         )
         self.season.matches.filter(home=self.team).update(home=team)
         self.season.matches.filter(away=self.team).update(away=team)
+
+        PersonSeason.objects.filter(team=self.team, season=self.season).update(
+            team=team
+        )
 
         for doc in Document.objects.filter(tag__season=self.season_id).filter(
             tag__team=old_team_id

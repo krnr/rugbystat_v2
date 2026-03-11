@@ -5,6 +5,7 @@ import logging
 import operator
 import re
 import typing as t
+from copy import copy
 from dataclasses import dataclass
 from difflib import SequenceMatcher as SM
 
@@ -921,13 +922,13 @@ MATCH_RE = re.compile(
 )
 SCORE_RE = re.compile(r"(\d+):(\d+)")
 
-UNCERTAIN_SCORE_RE = re.compile(r'[пшдгрт][а-я]*:\s*\?')
-SCORER_CONT_RE = re.compile(r'^[пшдгрт][а-я]*:')
+UNCERTAIN_SCORE_RE = re.compile(r"[пшдгрт][а-я]*:\s*\?")
+SCORER_CONT_RE = re.compile(r"^[пшдгрт][а-я]*:")
 
 DIV_TAGS = {
-    'match':  ("<div class='match'>",  '<div class="match">'),
-    'lineup': ("<div class='lineup'>", '<div class="lineup">'),
-    'txt':    ("<div class='txt'>",    '<div class="txt">'),
+    "match": ("<div class='match'>", '<div class="match">'),
+    "lineup": ("<div class='lineup'>", '<div class="lineup">'),
+    "txt": ("<div class='txt'>", '<div class="txt">'),
 }
 
 
@@ -947,8 +948,7 @@ class _DateState:
         self.date = None
         self.is_unknown = True
 
-    def snapshot(self) -> '_DateState':
-        from copy import copy
+    def snapshot(self) -> "_DateState":
         return copy(self)
 
 
@@ -956,13 +956,16 @@ class _DateState:
 class _BlankEvent:
     pass
 
+
 @dataclass
 class _DateLineEvent:
     line: str
 
+
 @dataclass
 class _MatchDivEvent:
     lines: t.List[str]
+
 
 @dataclass
 class _LineupDivEvent:
@@ -980,9 +983,9 @@ def _iter_events(lines: t.List[str]):
         if accumulating:
             accumulated.append(raw_line)
             if "</div>" in raw_line:
-                if accumulating == 'match':
+                if accumulating == "match":
                     yield _MatchDivEvent(list(accumulated))
-                elif accumulating == 'lineup':
+                elif accumulating == "lineup":
                     yield _LineupDivEvent(list(accumulated))
                 # txt: discard
                 accumulating = None
@@ -993,22 +996,22 @@ def _iter_events(lines: t.List[str]):
             yield _BlankEvent()
             continue
 
-        if any(t in raw_line for t in DIV_TAGS['match']):
-            accumulating = 'match'
+        if any(t in raw_line for t in DIV_TAGS["match"]):
+            accumulating = "match"
             accumulated = [raw_line]
-        elif any(t in raw_line for t in DIV_TAGS['lineup']):
-            accumulating = 'lineup'
+        elif any(t in raw_line for t in DIV_TAGS["lineup"]):
+            accumulating = "lineup"
             accumulated = [raw_line]
-        elif any(t in raw_line for t in DIV_TAGS['txt']):
-            accumulating = 'txt'
+        elif any(t in raw_line for t in DIV_TAGS["txt"]):
+            accumulating = "txt"
             accumulated = [raw_line]
         else:
             yield _DateLineEvent(line)
 
     # EOF: yield any unclosed div
-    if accumulating == 'match' and accumulated:
+    if accumulating == "match" and accumulated:
         yield _MatchDivEvent(list(accumulated))
-    elif accumulating == 'lineup' and accumulated:
+    elif accumulating == "lineup" and accumulated:
         yield _LineupDivEvent(list(accumulated))
 
 
@@ -1043,61 +1046,62 @@ class CalendarParser:
     @staticmethod
     def _extract_story_from_match_line(line: str) -> str:
         for m in MATCH_RE.finditer(line):
-            scorers = (m.groupdict().get('scorers') or '').strip()
-            for prefix in (' - ', ' -', '- ', '-'):
+            scorers = (m.groupdict().get("scorers") or "").strip()
+            for prefix in (" - ", " -", "- ", "-"):
                 if scorers.startswith(prefix):
-                    scorers = scorers[len(prefix):]
+                    scorers = scorers[len(prefix) :]
                     break
             return scorers.strip()
-        return ''
+        return ""
 
     @staticmethod
     def _is_uncertain_score(line: str) -> bool:
-        return line.rstrip().endswith('?') and not UNCERTAIN_SCORE_RE.search(line)
+        return line.rstrip().endswith("?") and not UNCERTAIN_SCORE_RE.search(line)
 
     @staticmethod
     def _extract_uncertain_outcome(full_match_line: str) -> str:
-        parts = full_match_line.split(' - ', 2)
-        return parts[2].strip() if len(parts) >= 3 else ''
+        parts = full_match_line.split(" - ", 2)
+        return parts[2].strip() if len(parts) >= 3 else ""
 
     # ── Div processing ────────────────────────────────────────────────────────
 
-    def _process_match_div(self, event: _MatchDivEvent) -> t.Tuple[t.Optional[str], str]:
+    def _process_match_div(
+        self, event: _MatchDivEvent
+    ) -> t.Tuple[t.Optional[str], str]:
         """Returns (first_line, story_content) for a match div."""
         lines_to_join = []
-        for l in event.lines:
-            for tag in (*DIV_TAGS['match'], "</div>", "<br>", "<br />", "<br/>"):
-                l = l.replace(tag, "")
-            if l.strip():
-                lines_to_join.append(l.strip())
+        for line in event.lines:
+            for tag in (*DIV_TAGS["match"], "</div>", "<br>", "<br />", "<br/>"):
+                line = line.replace(tag, "")
+            line = line.replace("—", "-").replace("–", "-")  # normalise dashes
+            if line.strip():
+                lines_to_join.append(line.strip())
 
         if not lines_to_join:
-            return None, ''
+            return None, ""
 
         # First line + scorer continuations joined with space;
         # everything else \n\n separated.
         scorer_parts = [lines_to_join[0]]
         rest = []
         for l in lines_to_join[1:]:
-            is_continuation = (
-                scorer_parts[-1].rstrip().endswith(',') or
-                SCORER_CONT_RE.match(l)
-            )
+            is_continuation = scorer_parts[-1].rstrip().endswith(
+                ","
+            ) or SCORER_CONT_RE.match(l)
             if not rest and is_continuation:
                 scorer_parts.append(l)
             else:
                 rest.append(l)
 
-        full_match_line = ' '.join(scorer_parts)
+        full_match_line = " ".join(scorer_parts)
         first_line = scorer_parts[0]
 
         if self._is_uncertain_score(full_match_line):
-            story_content = ''
+            story_content = ""
             for l in rest:
                 story_content = self._add_to_story(story_content, l)
             story_content = self._add_to_story(
-                story_content,
-                self._extract_uncertain_outcome(full_match_line)
+                story_content, self._extract_uncertain_outcome(full_match_line)
             )
         else:
             story_content = self._extract_story_from_match_line(full_match_line)
@@ -1108,8 +1112,8 @@ class CalendarParser:
 
     def _process_lineup_div(self, event: _LineupDivEvent) -> str:
         """Reassemble lineup div as clean HTML with space-joined inner content."""
-        inner = ' '.join(l.strip() for l in event.lines if l.strip())
-        for tag in (*DIV_TAGS['lineup'], "</div>"):
+        inner = " ".join(l.strip() for l in event.lines if l.strip())
+        for tag in (*DIV_TAGS["lineup"], "</div>"):
             inner = inner.replace(tag, "")
         return f"<div class='lineup'>\n{inner.strip()}\n</div>"
 
@@ -1149,7 +1153,6 @@ class CalendarParser:
             match_date_snapshot = None
 
         for event in _iter_events(self._lines):
-
             if isinstance(event, _BlankEvent):
                 if last_was_match:
                     ds.roll()
@@ -1167,7 +1170,7 @@ class CalendarParser:
                 match_first_line, story_content = self._process_match_div(event)
                 match = FullMatch()
                 match.tourn_season_id = season.id
-                match.story = story_content or ''
+                match.story = story_content or ""
                 match_date_snapshot = ds.snapshot()
                 last_was_match = True
 
@@ -1196,9 +1199,9 @@ class CalendarParser:
         return None, False
 
     def parse_match(self, txt) -> t.Optional[FullMatch]:
-        """Find parts of a match."""
         if not txt:
             return None
+        txt = txt.replace("—", "-").replace("–", "-")
         for match in MATCH_RE.finditer(txt):
             home_name, _ = process.extractOne(
                 match.groupdict()["home"].strip(), set(self._team_names)
@@ -1211,7 +1214,7 @@ class CalendarParser:
             if home_id and away_id:
                 m = FullMatch(home_id=home_id, away_id=away_id)
                 if match.groupdict()["full_score"]:
-                    scores = match.groupdict()["full_score"].split(':')
+                    scores = match.groupdict()["full_score"].split(":")
                     m.home_score = int(scores[0])
                     m.away_score = int(scores[1])
                 if match.groupdict()["half_score"]:

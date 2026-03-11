@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from teams.models import TagObject, Team, TeamSeason, GroupSeason
+from teams.models import TagObject, Team, TeamSeason, GroupSeason, PersonSeason
 # from teams.models import Stadium, Person
 
 logger = logging.getLogger("rugbystat")
@@ -122,13 +122,10 @@ class Season(TagObject):
         return "{} {}".format(self.tourn, self._get_lap())
 
     def change_team(self, old_pk, new_pk):
-        """Change team_id for all TeamSeason, GroupSeason, and matches."""
-        self.standings.filter(team_id=old_pk).update(team_id=new_pk)
-        GroupSeason.objects.filter(
-            group_id__in=self.groups.values_list("pk", flat=True), team_id=old_pk
-        ).update(team_id=new_pk)
-        self.matches.filter(home_id=old_pk).update(home_id=new_pk)
-        self.matches.filter(away_id=old_pk).update(away_id=new_pk)
+        """Change team_id for all TeamSeason, GroupSeason, PersonSeason, and matches."""
+        old_team_season = self.standings.filter(team_id=old_pk)
+        new_team = Team.objects.get(pk=new_pk)
+        old_team_season.change_team(new_team)
 
 
 class Group(models.Model):
