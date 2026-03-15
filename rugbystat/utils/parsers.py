@@ -72,27 +72,150 @@ TEAM_SIMILAR_THRESHOLD = 60
 
 def parse_rosters(_, data):
     for role, player in players_from_input(data["input"]):
-        # find person
         find_or_create_in_db(role, player, data)
+
+
+def _get_role_for_position(num: int) -> str:
+    """Get role for a single position number."""
+    if num in (1, 2, 3):
+        return PersonSeason.FIRST_ROW
+    return POSITIONS.get(str(num), PersonSeason.PLAYER)
+
+
+def _expand_range_position(number_str: str, players: list) -> t.List[t.Tuple[str, str]]:
+    """Expand range positions like 14-11 or 1-8 to individual positions."""
+    if "-" not in number_str:
+        role = POSITIONS.get(number_str, PersonSeason.PLAYER)
+        return [(role, p.strip()) for p in players if p.strip()]
+
+    try:
+        parts = number_str.split("-")
+        if len(parts) != 2:
+            return [(PersonSeason.PLAYER, p.strip()) for p in players if p.strip()]
+
+        first, last = int(parts[0]), int(parts[1])
+        if first > last:
+            numbers = list(range(last, first + 1))
+        else:
+            numbers = list(range(first, last + 1))
+
+        result = []
+        for i, num in enumerate(numbers):
+            role = _get_role_for_position(num)
+            if i < len(players):
+                player = players[i].strip()
+                if player:
+                    result.append((role, player))
+
+        for i in range(len(result), len(players)):
+            player = players[i].strip()
+            if player:
+                result.append((PersonSeason.PLAYER, player))
+
+        return result
+    except (ValueError, IndexError):
+        return [(PersonSeason.PLAYER, p.strip()) for p in players if p.strip()]
+
+
+def _clean_player_name(name: str) -> str:
+    """Clean player name: strip HTML tags, extra whitespace, and parenthetical content."""
+    name = re.sub(r"</?div[^>]*>", "", name, flags=re.IGNORECASE)
+    name = name.strip()
+    name = re.sub(r"\s+", " ", name)
+    return name
+
+
+def _split_conjunctions(players: list) -> list:
+    """Split players connected by 'и' (and) or comma."""
+    result = []
+    for player in players:
+        parts = re.split(r"\s+и\s+|[,\/]", player)
+        for part in parts:
+            part = part.strip()
+            if part:
+                result.append(part)
+    return result
+
+
+def _extract_substitutes(players: list, roles: list = None) -> tuple:
+    """Extract substitute players (in parentheses) from player list.
+    Returns (main_players_with_roles, substitutes_with_roles).
+    If roles provided, substitutes inherit the role of the player they replace.
+    """
+    main_players_with_roles = []
+    substitutes_with_roles = []
+
+    for i, player in enumerate(players):
+        role = roles[i] if roles and i < len(roles) else PersonSeason.PLAYER
+        sub_match = re.search(r"(.+?)\s*\(([^)]+)\)", player)
+        if sub_match:
+            main_part = sub_match.group(1).strip()
+            substitute = sub_match.group(2).strip()
+            if main_part:
+                main_players_with_roles.append((main_part, role))
+            if substitute:
+                substitutes_with_roles.append((substitute, role))
+        else:
+            main_players_with_roles.append((player, role))
+            substitutes_with_roles.append((None, None))
+
+    return main_players_with_roles, substitutes_with_roles
 
 
 def players_from_input(raw_text: str) -> t.Generator:
     input_ = raw_text.replace("\r\n", " ").replace(" / ", ";")
-    positions = input_.strip().split(";")
-    esc = r"(\d{1,2}-*\d{0,2}).(.*)"
+    input_ = re.sub(r"^[^:]+:", "", input_).strip()
+    input_ = _clean_player_name(input_)
+
+    if ";" in input_:
+        positions = input_.split(";")
+    else:
+        positions = [input_]
+
+    esc = r"(\d{1,2}-*\d{0,2})[\s\.]*(.*)"
+
     for position in positions:
-        # split number from names
-        try:
-            print("Checking {}".format(position))
-            number, players = re.findall(esc, position)[0]
-            print(number)
-        except ValueError:
-            msg = "Couldn't import data: {}".format(position)
-            print(msg)
+        position = position.strip()
+        if not position:
+            continue
+
+        match = re.match(esc, position)
+        if match:
+            number_str = match.group(1)
+            players_str = match.group(2)
+
+            players = [p.strip() for p in players_str.split(",") if p.strip()]
+            players = _split_conjunctions(players)
+
+            if "-" in number_str:
+                expanded = _expand_range_position(number_str, players)
+                roles = [r for r, _ in expanded]
+                players_only = [p for _, p in expanded]
+                _, substitutes = _extract_substitutes(players_only, roles)
+                for role, player in expanded:
+                    yield role, player
+                for sub_name, sub_role in substitutes:
+                    if sub_name:
+                        yield sub_role, sub_name
+            else:
+                role = POSITIONS.get(number_str, PersonSeason.PLAYER)
+                _, substitutes = _extract_substitutes(players, [role] * len(players))
+                for player in players:
+                    yield role, player
+                for sub_name, sub_role in substitutes:
+                    if sub_name:
+                        yield sub_role, sub_name
         else:
-            role = POSITIONS.get(number, PersonSeason.PLAYER)
-            for player in players.split(","):
-                yield role, player
+            players = [p.strip() for p in position.split(",") if p.strip()]
+            players = _split_conjunctions(players)
+            _, substitutes = _extract_substitutes(players)
+
+            for player in players:
+                if player:
+                    yield PersonSeason.PLAYER, player
+            for sub_name, sub_role in substitutes:
+                if sub_name:
+                    yield sub_role, sub_name
 
 
 def split_name(player: str) -> t.Tuple[str, str]:
@@ -1145,8 +1268,7 @@ class CalendarParser:
                 instance.date_unknown = None
             else:
                 instance.date = snap.default_date
-                if snap.is_unknown:
-                    instance.date_unknown = instance.date.strftime("%Y-%m-xx")
+                instance.date_unknown = instance.date.strftime("%Y-%m-xx")
             self._matches.append(instance)
             match = None
             match_first_line = None

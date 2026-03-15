@@ -2,8 +2,6 @@ Import TeamRoster - messages framework; display only for admin
 
 merge players
 
-youth teams for the clubs
-
 Завьялов из Авиатора?
 
 Атамась в ДСК и КИИГА один и тот же?
@@ -22,6 +20,8 @@ youth teams for the clubs
 09.10.1977 у ДСК два матча!
 
 Пискунов в ВЭФ и Алма-Ате - один и тот же?
+
+Панайоти в СМИ и Приморце - один и тот же?
 
 which thumb results in LookupError?
 
@@ -48,21 +48,3 @@ PersonEditForm - ajax save
 ImportForm for batch adding PersonSeason for a team roster
 
 DocumentEditForm?
-
-1984 год:
-├ чемпионат ссср
-├┼ группа а
-│├ группа б
-│├ матчи за 5-8 места
-│├ матчи за 1-4 места
-├ кубок ссср
-├┼ 1/32
-│├ 1/16
-│├ ...
-
-при этом
-
-Локомотив Тбилиси:
-1984 - чемпионат ссср: 6 из 24
-1984 - кубок ссср: обладатель (финалист) - TeamSeason
-
